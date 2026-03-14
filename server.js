@@ -158,6 +158,52 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Обновление профиля
+app.put('/api/profile', authenticateToken, async (req, res) => {
+    try {
+        const { username, avatar, password } = req.body;
+        const user = users.get(req.userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'Пользователь не найден' });
+        }
+
+        // Проверяем уникальность username
+        if (username && username !== user.username) {
+            const existingUser = Array.from(users.values()).find(u => u.username === username && u.id !== req.userId);
+            if (existingUser) {
+                return res.status(400).json({ error: 'Имя пользователя уже занято' });
+            }
+            user.username = username;
+        }
+
+        // Обновляем аватар
+        if (avatar) {
+            user.avatar = avatar;
+        }
+
+        // Обновляем пароль
+        if (password) {
+            user.password = await bcrypt.hash(password, 10);
+        }
+
+        user.updatedAt = new Date();
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        console.error('Ошибка обновления профиля:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
 // Получить информацию о текущем пользователе
 app.get('/api/me', authenticateToken, (req, res) => {
     const user = users.get(req.userId);
@@ -361,7 +407,14 @@ io.on('connection', (socket) => {
         chats.set(chatId, chat);
         messages.set(chatId, []);
         
+        // Уведомляем создателя
         socket.emit('chat-created', { chatId });
+        
+        // Уведомляем другого пользователя о новом чате
+        const otherUserSocketId = onlineUsers.get(otherUserId);
+        if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit('new-chat', { chatId });
+        }
     });
     
     // Видеозвонки - улучшенная синхронизация

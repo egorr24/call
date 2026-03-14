@@ -62,6 +62,11 @@ class AwesomeMessenger {
             this.handleFileSelect(e.target.files);
         });
 
+        // Обработка выбора аватара
+        document.getElementById('avatar-input').addEventListener('change', (e) => {
+            this.handleAvatarSelect(e.target.files[0]);
+        });
+
         // Мобильная навигация - кнопка назад
         document.addEventListener('click', (e) => {
             if (e.target.closest('.chat-header') && window.innerWidth <= 768) {
@@ -217,6 +222,11 @@ class AwesomeMessenger {
 
         this.socket.on('chat-created', (data) => {
             this.openChat(data.chatId);
+        });
+
+        this.socket.on('new-chat', (data) => {
+            // Новый чат создан другим пользователем
+            this.loadChats(); // Обновляем список чатов
         });
 
         this.socket.on('user-online', (userId) => {
@@ -680,6 +690,112 @@ class AwesomeMessenger {
         document.getElementById('users-modal').classList.remove('active');
     }
 
+    showSettings() {
+        // Загружаем текущие данные пользователя
+        document.getElementById('settings-avatar').src = this.currentUser.avatar;
+        document.getElementById('settings-username').value = this.currentUser.username;
+        document.getElementById('settings-email').value = this.currentUser.email;
+        document.getElementById('settings-password').value = '';
+        
+        document.getElementById('settings-modal').classList.add('active');
+    }
+
+    closeSettingsModal() {
+        document.getElementById('settings-modal').classList.remove('active');
+    }
+
+    selectAvatar() {
+        document.getElementById('avatar-input').click();
+    }
+
+    async saveSettings() {
+        const username = document.getElementById('settings-username').value.trim();
+        const password = document.getElementById('settings-password').value;
+        const avatarFile = document.getElementById('avatar-input').files[0];
+
+        if (!username) {
+            alert('Введите имя пользователя');
+            return;
+        }
+
+        try {
+            let avatarUrl = this.currentUser.avatar;
+
+            // Загружаем новый аватар если выбран
+            if (avatarFile) {
+                const formData = new FormData();
+                formData.append('file', avatarFile);
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: formData
+                });
+
+                if (uploadResponse.ok) {
+                    const uploadResult = await uploadResponse.json();
+                    avatarUrl = uploadResult.file.url;
+                }
+            }
+
+            // Обновляем профиль
+            const updateData = {
+                username,
+                avatar: avatarUrl
+            };
+
+            if (password) {
+                updateData.password = password;
+            }
+
+            const response = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.currentUser = result.user;
+                this.loadUserInfo();
+                this.closeSettingsModal();
+                alert('Профиль обновлен!');
+            } else {
+                const error = await response.json();
+                alert(error.error || 'Ошибка обновления профиля');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения настроек:', error);
+            alert('Ошибка сохранения настроек');
+        }
+    }
+
+    handleAvatarSelect(file) {
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Выберите изображение');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) { // 5MB лимит для аватара
+            alert('Файл слишком большой (максимум 5MB)');
+            return;
+        }
+        
+        // Показываем превью
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('settings-avatar').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     async openChat(chatId) {
         await this.loadChats();
         this.selectChat(chatId);
@@ -1058,6 +1174,22 @@ function sendMessage() {
 
 function showUsers() {
     app.showUsers();
+}
+
+function showSettings() {
+    app.showSettings();
+}
+
+function closeSettingsModal() {
+    app.closeSettingsModal();
+}
+
+function selectAvatar() {
+    app.selectAvatar();
+}
+
+function saveSettings() {
+    app.saveSettings();
 }
 
 function closeUsersModal() {
