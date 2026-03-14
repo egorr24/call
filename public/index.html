@@ -35,36 +35,40 @@
             
             <!-- Форма входа -->
             <div id="login-form" class="auth-form active">
-                <div class="form-group">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="login-email" placeholder="Email" required>
-                </div>
-                <div class="form-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="login-password" placeholder="Пароль" required>
-                </div>
-                <button class="auth-btn" onclick="login()">
-                    <i class="fas fa-sign-in-alt"></i> Войти
-                </button>
+                <form onsubmit="return false;">
+                    <div class="form-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="login-email" class="form-input" placeholder="Email" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" class="form-input" placeholder="Пароль" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="auth-btn btn-primary" id="login-btn">
+                        <i class="fas fa-sign-in-alt"></i> Войти
+                    </button>
+                </form>
             </div>
             
             <!-- Форма регистрации -->
             <div id="register-form" class="auth-form">
-                <div class="form-group">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="register-username" placeholder="Имя пользователя" required>
-                </div>
-                <div class="form-group">
-                    <i class="fas fa-envelope"></i>
-                    <input type="email" id="register-email" placeholder="Email" required>
-                </div>
-                <div class="form-group">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="register-password" placeholder="Пароль" required>
-                </div>
-                <button class="auth-btn" onclick="register()">
-                    <i class="fas fa-user-plus"></i> Зарегистрироваться
-                </button>
+                <form onsubmit="return false;">
+                    <div class="form-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="register-username" class="form-input" placeholder="Имя пользователя" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="register-email" class="form-input" placeholder="Email" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="register-password" class="form-input" placeholder="Пароль (минимум 6 символов)" required autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="auth-btn btn-primary" id="register-btn">
+                        <i class="fas fa-user-plus"></i> Зарегистрироваться
+                    </button>
+                </form>
             </div>
         </div>
     </div>

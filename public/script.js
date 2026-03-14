@@ -40,40 +40,90 @@ class AwesomeMessenger {
             });
         });
 
+        // Обработчики форм авторизации
+        const loginForm = document.querySelector('#login-form form');
+        const registerForm = document.querySelector('#register-form form');
+        const loginBtn = document.getElementById('login-btn');
+        const registerBtn = document.getElementById('register-btn');
+
+        // Форма входа
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.login();
+            });
+        }
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.login();
+            });
+        }
+
+        // Форма регистрации
+        if (registerForm) {
+            registerForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.register();
+            });
+        }
+        
+        if (registerBtn) {
+            registerBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.register();
+            });
+        }
+
         // Enter для отправки сообщений (только на десктопе)
         const messageInput = document.getElementById('message-input');
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
 
-        // Автоматическое изменение высоты textarea
-        messageInput.addEventListener('input', (e) => {
-            e.target.style.height = 'auto';
-            e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
-        });
+            // Автоматическое изменение высоты textarea
+            messageInput.addEventListener('input', (e) => {
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+            });
+        }
 
         // Поиск чатов
-        document.getElementById('chat-search').addEventListener('input', (e) => {
-            this.searchChats(e.target.value);
-        });
+        const chatSearch = document.getElementById('chat-search');
+        if (chatSearch) {
+            chatSearch.addEventListener('input', (e) => {
+                this.searchChats(e.target.value);
+            });
+        }
 
         // Поиск пользователей
-        document.getElementById('user-search').addEventListener('input', (e) => {
-            this.searchUsers(e.target.value);
-        });
+        const userSearch = document.getElementById('user-search');
+        if (userSearch) {
+            userSearch.addEventListener('input', (e) => {
+                this.searchUsers(e.target.value);
+            });
+        }
 
         // Обработка выбора файлов
-        document.getElementById('file-input').addEventListener('change', (e) => {
-            this.handleFileSelect(e.target.files);
-        });
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                this.handleFileSelect(e.target.files);
+            });
+        }
 
         // Обработка выбора аватара
-        document.getElementById('avatar-input').addEventListener('change', (e) => {
-            this.handleAvatarSelect(e.target.files[0]);
-        });
+        const avatarInput = document.getElementById('avatar-input');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                this.handleAvatarSelect(e.target.files[0]);
+            });
+        }
 
         // Мобильная навигация - улучшенная
         this.setupMobileNavigation();
@@ -589,30 +639,42 @@ class AwesomeMessenger {
         const time = this.formatTime(new Date(message.timestamp));
         let fileContent = '';
 
-        // Обработка файлов
+        // Обработка файлов с проверкой доступности
         if (message.fileData) {
             const file = message.fileData;
+            const fileUrl = file.url.startsWith('http') ? file.url : window.location.origin + file.url;
+            
             if (file.mimetype.startsWith('image/')) {
                 fileContent = `
                     <div class="message-file">
-                        <img src="${file.url}" alt="${file.originalName}" class="message-image" onclick="openImageModal('${file.url}')">
+                        <img src="${fileUrl}" 
+                             alt="${this.escapeHtml(file.originalName)}" 
+                             class="message-image" 
+                             onclick="openImageModal('${fileUrl}')"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="file-error" style="display:none; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px; color:#ff6b6b;">
+                            <i class="fas fa-exclamation-triangle"></i> Изображение недоступно
+                        </div>
                     </div>
                 `;
             } else if (file.mimetype.startsWith('video/')) {
                 fileContent = `
                     <div class="message-file">
-                        <video controls class="message-video">
-                            <source src="${file.url}" type="${file.mimetype}">
+                        <video controls class="message-video" preload="metadata">
+                            <source src="${fileUrl}" type="${file.mimetype}">
+                            <div class="file-error" style="padding:10px; background:rgba(255,0,0,0.1); border-radius:8px; color:#ff6b6b;">
+                                <i class="fas fa-exclamation-triangle"></i> Видео недоступно
+                            </div>
                         </video>
                     </div>
                 `;
             } else {
                 fileContent = `
                     <div class="message-file">
-                        <div class="message-document" onclick="downloadFile('${file.url}', '${file.originalName}')">
+                        <div class="message-document" onclick="downloadFile('${fileUrl}', '${this.escapeHtml(file.originalName)}')">
                             <i class="fas fa-file"></i>
                             <div class="document-info">
-                                <div class="document-name">${file.originalName}</div>
+                                <div class="document-name">${this.escapeHtml(file.originalName)}</div>
                                 <div class="document-size">${this.formatFileSize(file.size)}</div>
                             </div>
                         </div>
@@ -1625,79 +1687,7 @@ class AwesomeMessenger {
     }
 }
 
-// Глобальные функции для HTML
-function register() {
-    app.register();
-}
-
-function login() {
-    app.login();
-}
-
-function logout() {
-    app.logout();
-}
-
-function sendMessage() {
-    app.sendMessage();
-}
-
-function showUsers() {
-    app.showUsers();
-}
-
-function showSettings() {
-    app.showSettings();
-}
-
-function closeSettingsModal() {
-    app.closeSettingsModal();
-}
-
-function selectAvatar() {
-    app.selectAvatar();
-}
-
-function saveSettings() {
-    app.saveSettings();
-}
-
-function closeUsersModal() {
-    app.closeUsersModal();
-}
-
-function startVideoCall() {
-    app.startVideoCall();
-}
-
-function startAudioCall() {
-    app.startAudioCall();
-}
-
-function toggleVideo() {
-    app.toggleVideo();
-}
-
-function toggleAudio() {
-    app.toggleAudio();
-}
-
-function shareScreen() {
-    app.shareScreen();
-}
-
-function endCall() {
-    app.endCall();
-}
-
-function selectFile() {
-    app.selectFile();
-}
-
-function selectImage() {
-    app.selectImage();
-}
-
+// Глобальные функции для HTML (оставляем только необходимые)
 function openImageModal(url) {
     window.open(url, '_blank');
 }
@@ -1706,6 +1696,7 @@ function downloadFile(url, filename) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    a.target = '_blank';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

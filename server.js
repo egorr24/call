@@ -50,7 +50,13 @@ const storage = multer.diskStorage({
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${file.originalname}`;
+        // Очищаем имя файла от специальных символов
+        const cleanName = file.originalname
+            .replace(/[^a-zA-Z0-9.-]/g, '_') // Заменяем спецсимволы на _
+            .replace(/_{2,}/g, '_') // Убираем множественные _
+            .toLowerCase();
+        
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${cleanName}`;
         cb(null, uniqueName);
     }
 });
@@ -62,7 +68,7 @@ const upload = multer({
     },
     fileFilter: (req, file, cb) => {
         // Разрешенные типы файлов
-        const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|pdf|doc|docx|txt|zip|rar/;
+        const allowedTypes = /jpeg|jpg|png|gif|webp|mp4|mov|avi|webm|pdf|doc|docx|txt|zip|rar/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = allowedTypes.test(file.mimetype);
         
@@ -74,8 +80,31 @@ const upload = multer({
     }
 });
 
-// Раздача загруженных файлов
-app.use('/uploads', express.static(uploadsDir));
+// Раздача загруженных файлов с правильной обработкой
+app.use('/uploads', express.static(uploadsDir, {
+    setHeaders: (res, path) => {
+        // Устанавливаем правильные заголовки для разных типов файлов
+        if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+            res.setHeader('Content-Type', 'image/jpeg');
+        } else if (path.endsWith('.png')) {
+            res.setHeader('Content-Type', 'image/png');
+        } else if (path.endsWith('.gif')) {
+            res.setHeader('Content-Type', 'image/gif');
+        } else if (path.endsWith('.mp4')) {
+            res.setHeader('Content-Type', 'video/mp4');
+        } else if (path.endsWith('.pdf')) {
+            res.setHeader('Content-Type', 'application/pdf');
+        }
+        
+        // Кэширование файлов
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 часа
+    }
+}));
+
+// Обработка ошибок для несуществующих файлов
+app.use('/uploads', (req, res, next) => {
+    res.status(404).json({ error: 'Файл не найден' });
+});
 
 // Временное хранилище для онлайн пользователей и комнат видеозвонков
 const onlineUsers = new Map();
@@ -555,31 +584,45 @@ app.get('/api/chats/:chatId/messages', authenticateToken, async (req, res) => {
 });
 
 // Загрузка файлов
-app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'Файл не загружен' });
+app.post('/api/upload', authenticateToken, (req, res) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            console.error('Ошибка загрузки файла:', err);
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'Файл слишком большой (максимум 50MB)' });
+                }
+            }
+            return res.status(400).json({ error: err.message || 'Ошибка загрузки файла' });
         }
 
-        const fileInfo = {
-            id: uuidv4(),
-            originalName: req.file.originalname,
-            filename: req.file.filename,
-            size: req.file.size,
-            mimetype: req.file.mimetype,
-            url: `/uploads/${req.file.filename}`,
-            uploadedBy: req.userId,
-            uploadedAt: new Date()
-        };
+        try {
+            if (!req.file) {
+                return res.status(400).json({ error: 'Файл не загружен' });
+            }
 
-        res.json({
-            success: true,
-            file: fileInfo
-        });
-    } catch (error) {
-        console.error('Ошибка загрузки файла:', error);
-        res.status(500).json({ error: 'Ошибка загрузки файла' });
-    }
+            const fileInfo = {
+                id: uuidv4(),
+                originalName: req.file.originalname,
+                filename: req.file.filename,
+                size: req.file.size,
+                mimetype: req.file.mimetype,
+                url: `/uploads/${req.file.filename}`,
+                uploadedBy: req.userId,
+                uploadedAt: new Date()
+            };
+
+            console.log('Файл успешно загружен:', fileInfo.url);
+
+            res.json({
+                success: true,
+                file: fileInfo
+            });
+        } catch (error) {
+            console.error('Ошибка обработки файла:', error);
+            res.status(500).json({ error: 'Ошибка обработки файла' });
+        }
+    });
 });
 
 // Middleware для проверки токена
