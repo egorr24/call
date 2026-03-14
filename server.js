@@ -81,6 +81,14 @@ app.use('/uploads', express.static(uploadsDir));
 const onlineUsers = new Map();
 const rooms = new Map();
 
+// Fallback хранилище если база данных недоступна
+const users = new Map();
+const chats = new Map();
+const messages = new Map();
+
+// Флаг использования базы данных
+let useDatabase = false;
+
 // API Routes
 
 // Регистрация
@@ -88,44 +96,80 @@ app.post('/api/register', async (req, res) => {
     try {
         const { username, email, password } = req.body;
         
-        // Проверяем существование пользователя
-        const existingUser = await User.findOne({
-            where: {
-                [Op.or]: [
-                    { email: email },
-                    { username: username }
-                ]
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const existingUser = await User.findOne({
+                where: {
+                    [Op.or]: [
+                        { email: email },
+                        { username: username }
+                    ]
+                }
+            });
+            
+            if (existingUser) {
+                return res.status(400).json({ error: 'Пользователь уже существует' });
             }
-        });
-        
-        if (existingUser) {
-            return res.status(400).json({ error: 'Пользователь уже существует' });
+            
+            const hashedPassword = await bcrypt.hash(password, 10);
+            
+            const user = await User.create({
+                username,
+                email,
+                password: hashedPassword,
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+            });
+            
+            const token = jwt.sign({ userId: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({
+                success: true,
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const existingUser = Array.from(users.values()).find(u => 
+                u.email === email || u.username === username
+            );
+            
+            if (existingUser) {
+                return res.status(400).json({ error: 'Пользователь уже существует' });
+            }
+            
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const userId = uuidv4();
+            
+            const user = {
+                id: userId,
+                username,
+                email,
+                password: hashedPassword,
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+                lastSeen: new Date(),
+                createdAt: new Date()
+            };
+            
+            users.set(userId, user);
+            
+            const token = jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({
+                success: true,
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
         }
-        
-        // Хешируем пароль
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
-        // Создаем пользователя
-        const user = await User.create({
-            username,
-            email,
-            password: hashedPassword,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
-        });
-        
-        // Создаем JWT токен
-        const token = jwt.sign({ userId: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
-        
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                avatar: user.avatar
-            }
-        });
     } catch (error) {
         console.error('Ошибка регистрации:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
@@ -137,34 +181,59 @@ app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
-        // Находим пользователя
-        const user = await User.findOne({ where: { email } });
-        if (!user) {
-            return res.status(400).json({ error: 'Неверные данные' });
-        }
-        
-        // Проверяем пароль
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        if (!isValidPassword) {
-            return res.status(400).json({ error: 'Неверные данные' });
-        }
-        
-        // Обновляем время последнего входа
-        await user.update({ lastSeen: new Date() });
-        
-        // Создаем JWT токен
-        const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-        
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                avatar: user.avatar
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const user = await User.findOne({ where: { email } });
+            if (!user) {
+                return res.status(400).json({ error: 'Неверные данные' });
             }
-        });
+            
+            const isValidPassword = await bcrypt.compare(password, user.password);
+            if (!isValidPassword) {
+                return res.status(400).json({ error: 'Неверные данные' });
+            }
+            
+            await user.update({ lastSeen: new Date() });
+            
+            const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({
+                success: true,
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const user = Array.from(users.values()).find(u => u.email === email);
+            if (!user) {
+                return res.status(400).json({ error: 'Неверные данные' });
+            }
+            
+            const isValidPassword = await bcrypt.compare(password, user.password);
+            if (!isValidPassword) {
+                return res.status(400).json({ error: 'Неверные данные' });
+            }
+            
+            user.lastSeen = new Date();
+            
+            const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+            
+            res.json({
+                success: true,
+                token,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        }
     } catch (error) {
         console.error('Ошибка авторизации:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
@@ -578,18 +647,20 @@ setInterval(() => {
 // Запуск сервера с инициализацией базы данных
 async function startServer() {
     try {
-        // Инициализируем базу данных
-        const dbConnected = await initDatabase();
+        // Пытаемся инициализировать базу данных
+        useDatabase = await initDatabase();
         
-        if (!dbConnected) {
-            console.error('❌ Не удалось подключиться к базе данных');
-            process.exit(1);
+        if (useDatabase) {
+            console.log('✅ Используем PostgreSQL базу данных');
+        } else {
+            console.log('⚠️  Используем временное хранилище в памяти');
+            console.log('⚠️  Данные будут потеряны при перезагрузке сервера');
         }
         
         // Запускаем сервер
         server.listen(PORT, () => {
             console.log(`🚀 Flux Messenger запущен на порту ${PORT}`);
-            console.log(`📊 База данных: PostgreSQL`);
+            console.log(`📊 База данных: ${useDatabase ? 'PostgreSQL' : 'Memory (fallback)'}`);
             console.log(`🌐 Режим: ${process.env.NODE_ENV || 'development'}`);
         });
         
