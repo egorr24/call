@@ -40,40 +40,28 @@ class AwesomeMessenger {
             });
         });
 
-        // Обработчики форм авторизации
-        const loginForm = document.querySelector('#login-form form');
-        const registerForm = document.querySelector('#register-form form');
-        const loginBtn = document.getElementById('login-btn');
-        const registerBtn = document.getElementById('register-btn');
-
-        // Форма входа
+        // ИМБОВЫЕ обработчики для форм авторизации
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        
         if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.login();
-            });
+            const loginBtn = loginForm.querySelector('.auth-btn');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.login();
+                });
+            }
         }
         
-        if (loginBtn) {
-            loginBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.login();
-            });
-        }
-
-        // Форма регистрации
         if (registerForm) {
-            registerForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.register();
-            });
-        }
-        
-        if (registerBtn) {
-            registerBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.register();
-            });
+            const registerBtn = registerForm.querySelector('.auth-btn');
+            if (registerBtn) {
+                registerBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.register();
+                });
+            }
         }
 
         // Enter для отправки сообщений (только на десктопе)
@@ -125,6 +113,96 @@ class AwesomeMessenger {
             });
         }
 
+        // ИМБОВЫЕ обработчики для кнопок в header
+        const showUsersBtn = document.querySelector('.header-actions button[title="Найти пользователей"]');
+        if (showUsersBtn) {
+            showUsersBtn.addEventListener('click', () => this.showUsers());
+        }
+
+        const showSettingsBtn = document.querySelector('.header-actions button[title="Настройки"]');
+        if (showSettingsBtn) {
+            showSettingsBtn.addEventListener('click', () => this.showSettings());
+        }
+
+        const logoutBtn = document.querySelector('.header-actions button[title="Выйти"]');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.logout());
+        }
+
+        // ИМБОВЫЕ обработчики для кнопок чата
+        const startVideoCallBtn = document.querySelector('.chat-actions button[title="Видеозвонок"]');
+        if (startVideoCallBtn) {
+            startVideoCallBtn.addEventListener('click', () => this.startVideoCall());
+        }
+
+        const startAudioCallBtn = document.querySelector('.chat-actions button[title="Аудиозвонок"]');
+        if (startAudioCallBtn) {
+            startAudioCallBtn.addEventListener('click', () => this.startAudioCall());
+        }
+
+        // ИМБОВЫЕ обработчики для кнопок ввода сообщений
+        const selectFileBtn = document.querySelector('.message-input button[title="Прикрепить файл"]');
+        if (selectFileBtn) {
+            selectFileBtn.addEventListener('click', () => this.selectFile());
+        }
+
+        const selectImageBtn = document.querySelector('.message-input button[title="Отправить фото"]');
+        if (selectImageBtn) {
+            selectImageBtn.addEventListener('click', () => this.selectImage());
+        }
+
+        const sendMessageBtn = document.querySelector('.message-input button[title="Отправить"]');
+        if (sendMessageBtn) {
+            sendMessageBtn.addEventListener('click', () => this.sendMessage());
+        }
+
+        // ИМБОВЫЕ обработчики для модальных окон
+        const closeSettingsBtn = document.querySelector('#settings-modal .close-btn');
+        if (closeSettingsBtn) {
+            closeSettingsBtn.addEventListener('click', () => this.closeSettingsModal());
+        }
+
+        const closeUsersBtn = document.querySelector('#users-modal .close-btn');
+        if (closeUsersBtn) {
+            closeUsersBtn.addEventListener('click', () => this.closeUsersModal());
+        }
+
+        const selectAvatarBtn = document.querySelector('.avatar-section .btn-secondary');
+        if (selectAvatarBtn) {
+            selectAvatarBtn.addEventListener('click', () => this.selectAvatar());
+        }
+
+        const saveSettingsBtn = document.querySelector('.settings-actions .btn-primary');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        }
+
+        const cancelSettingsBtn = document.querySelector('.settings-actions .btn-secondary');
+        if (cancelSettingsBtn) {
+            cancelSettingsBtn.addEventListener('click', () => this.closeSettingsModal());
+        }
+
+        // ИМБОВЫЕ обработчики для видеозвонков
+        const toggleVideoBtn = document.getElementById('toggle-video-btn');
+        if (toggleVideoBtn) {
+            toggleVideoBtn.addEventListener('click', () => this.toggleVideo());
+        }
+
+        const toggleAudioBtn = document.getElementById('toggle-audio-btn');
+        if (toggleAudioBtn) {
+            toggleAudioBtn.addEventListener('click', () => this.toggleAudio());
+        }
+
+        const shareScreenBtn = document.querySelector('.call-controls .screen-btn');
+        if (shareScreenBtn) {
+            shareScreenBtn.addEventListener('click', () => this.shareScreen());
+        }
+
+        const endCallBtn = document.querySelector('.call-controls .end-btn');
+        if (endCallBtn) {
+            endCallBtn.addEventListener('click', () => this.endCall());
+        }
+
         // Мобильная навигация - улучшенная
         this.setupMobileNavigation();
 
@@ -142,6 +220,8 @@ class AwesomeMessenger {
         if (window.innerWidth <= 768) {
             this.setupMobileKeyboard();
         }
+
+        console.log('🔥 ИМБОВЫЕ ОБРАБОТЧИКИ СОБЫТИЙ ЗАГРУЖЕНЫ!');
     }
 
     setupMobileNavigation() {
@@ -532,7 +612,10 @@ class AwesomeMessenger {
             const chatElement = document.createElement('div');
             chatElement.className = 'chat-item';
             chatElement.dataset.chatId = chat.id;
-            chatElement.onclick = () => this.selectChat(chat.id);
+            chatElement.style.cursor = 'pointer';
+            
+            // ИМБОВЫЙ обработчик клика
+            chatElement.addEventListener('click', () => this.selectChat(chat.id));
 
             const lastMessageTime = chat.lastMessage ? 
                 this.formatTime(new Date(chat.lastMessage.timestamp)) : '';
@@ -650,7 +733,7 @@ class AwesomeMessenger {
                         <img src="${fileUrl}" 
                              alt="${this.escapeHtml(file.originalName)}" 
                              class="message-image" 
-                             onclick="openImageModal('${fileUrl}')"
+                             style="cursor: pointer;"
                              onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                         <div class="file-error" style="display:none; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px; color:#ff6b6b;">
                             <i class="fas fa-exclamation-triangle"></i> Изображение недоступно
@@ -671,7 +754,7 @@ class AwesomeMessenger {
             } else {
                 fileContent = `
                     <div class="message-file">
-                        <div class="message-document" onclick="downloadFile('${fileUrl}', '${this.escapeHtml(file.originalName)}')">
+                        <div class="message-document" style="cursor: pointer;">
                             <i class="fas fa-file"></i>
                             <div class="document-info">
                                 <div class="document-name">${this.escapeHtml(file.originalName)}</div>
@@ -690,6 +773,34 @@ class AwesomeMessenger {
                 <div class="message-time">${time}</div>
             </div>
         `;
+
+        // ИМБОВЫЕ обработчики для файлов
+        if (message.fileData) {
+            const file = message.fileData;
+            const fileUrl = file.url.startsWith('http') ? file.url : window.location.origin + file.url;
+            
+            if (file.mimetype.startsWith('image/')) {
+                const img = messageDiv.querySelector('.message-image');
+                if (img) {
+                    img.addEventListener('click', () => {
+                        window.open(fileUrl, '_blank');
+                    });
+                }
+            } else if (!file.mimetype.startsWith('video/')) {
+                const docElement = messageDiv.querySelector('.message-document');
+                if (docElement) {
+                    docElement.addEventListener('click', () => {
+                        const a = document.createElement('a');
+                        a.href = fileUrl;
+                        a.download = file.originalName;
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    });
+                }
+            }
+        }
 
         return messageDiv;
     }
@@ -827,8 +938,12 @@ class AwesomeMessenger {
                     <div>${file.name}</div>
                     <div>${this.formatFileSize(file.size)}</div>
                 </div>
-                <button class="remove-file" onclick="app.removeFile(${index})">×</button>
+                <button class="remove-file">×</button>
             `;
+
+            // ИМБОВЫЙ обработчик для удаления файла
+            const removeBtn = previewItem.querySelector('.remove-file');
+            removeBtn.addEventListener('click', () => this.removeFile(index));
 
             preview.appendChild(previewItem);
         });
@@ -949,7 +1064,10 @@ class AwesomeMessenger {
             
             const userElement = document.createElement('div');
             userElement.className = 'user-item';
-            userElement.onclick = () => this.createChat(user.id);
+            userElement.style.cursor = 'pointer';
+            
+            // ИМБОВЫЙ обработчик клика
+            userElement.addEventListener('click', () => this.createChat(user.id));
 
             const lastSeen = user.online ? 'В сети' : 
                 `Был(а) в сети ${this.formatTime(new Date(user.lastSeen))}`;
@@ -1418,9 +1536,9 @@ class AwesomeMessenger {
     }
 
     showError(message) {
-        // Создаем уведомление об ошибке с улучшенным дизайном
+        // ИМБОВОЕ уведомление об ошибке с эффектом жидкого стекла
         const notification = document.createElement('div');
-        notification.className = 'notification error-notification';
+        notification.className = 'notification error-notification glass-effect';
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -1428,46 +1546,74 @@ class AwesomeMessenger {
             left: 20px;
             max-width: 400px;
             margin: 0 auto;
-            background: linear-gradient(135deg, #ff4757, #ff3742);
-            color: #fff;
-            padding: 16px 20px;
-            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ffffff;
+            padding: 18px 24px;
+            border-radius: 16px;
             z-index: 10000;
             font-weight: 500;
-            box-shadow: 0 8px 32px rgba(255, 71, 87, 0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(239, 68, 68, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
-            gap: 12px;
-            animation: slideDown 0.3s ease;
+            gap: 14px;
+            animation: glassSlideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Segoe UI', system-ui, sans-serif;
         `;
         
         notification.innerHTML = `
-            <i class="fas fa-exclamation-circle" style="font-size: 18px; color: #fff;"></i>
-            <span style="flex: 1;">${message}</span>
-            <button onclick="this.parentNode.remove()" style="background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 4px;">×</button>
+            <div style="
+                width: 24px; 
+                height: 24px; 
+                background: linear-gradient(135deg, #ef4444, #dc2626);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+            ">
+                <i class="fas fa-exclamation" style="font-size: 12px; color: #fff;"></i>
+            </div>
+            <span style="flex: 1; font-size: 15px; line-height: 1.4;">${message}</span>
+            <button onclick="this.parentNode.remove()" style="
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: #fff;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                transition: all 0.2s ease;
+            " onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">×</button>
         `;
         
         document.body.appendChild(notification);
         
-        // Автоматическое удаление через 5 секунд
+        // Автоматическое удаление через 6 секунд (дольше для ошибок)
         setTimeout(() => {
             if (notification.parentNode) {
-                notification.style.animation = 'slideUp 0.3s ease forwards';
+                notification.style.animation = 'glassSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.parentNode.removeChild(notification);
                     }
-                }, 300);
+                }, 400);
             }
-        }, 5000);
+        }, 6000);
     }
 
     showNotification(message) {
-        // Создаем успешное уведомление с улучшенным дизайном
+        // ИМБОВОЕ уведомление с эффектом жидкого стекла
         const notification = document.createElement('div');
-        notification.className = 'notification success-notification';
+        notification.className = 'notification success-notification glass-effect';
         notification.style.cssText = `
             position: fixed;
             top: 20px;
@@ -1475,40 +1621,68 @@ class AwesomeMessenger {
             left: 20px;
             max-width: 400px;
             margin: 0 auto;
-            background: linear-gradient(135deg, #00ff88, #00cc6a);
-            color: #000;
-            padding: 16px 20px;
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 18px 24px;
+            border-radius: 16px;
             z-index: 10000;
             font-weight: 500;
-            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
             display: flex;
             align-items: center;
-            gap: 12px;
-            animation: slideDown 0.3s ease;
+            gap: 14px;
+            animation: glassSlideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Segoe UI', system-ui, sans-serif;
         `;
         
         notification.innerHTML = `
-            <i class="fas fa-check-circle" style="font-size: 18px; color: #000;"></i>
-            <span style="flex: 1;">${message}</span>
-            <button onclick="this.parentNode.remove()" style="background: none; border: none; color: #000; font-size: 18px; cursor: pointer; padding: 4px;">×</button>
+            <div style="
+                width: 24px; 
+                height: 24px; 
+                background: linear-gradient(135deg, #4ade80, #22c55e);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            ">
+                <i class="fas fa-check" style="font-size: 12px; color: #fff;"></i>
+            </div>
+            <span style="flex: 1; font-size: 15px; line-height: 1.4;">${message}</span>
+            <button onclick="this.parentNode.remove()" style="
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: #fff;
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                transition: all 0.2s ease;
+            " onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">×</button>
         `;
         
         document.body.appendChild(notification);
         
-        // Автоматическое удаление через 3 секунды
+        // Автоматическое удаление через 4 секунды
         setTimeout(() => {
             if (notification.parentNode) {
-                notification.style.animation = 'slideUp 0.3s ease forwards';
+                notification.style.animation = 'glassSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards';
                 setTimeout(() => {
                     if (notification.parentNode) {
                         notification.parentNode.removeChild(notification);
                     }
-                }, 300);
+                }, 400);
             }
-        }, 3000);
+        }, 4000);
     }
 
     // Оптимизация производительности
@@ -1597,38 +1771,6 @@ class AwesomeMessenger {
         }, 300);
     }
 
-    showNotification(message) {
-        // Создаем уведомление
-        const notification = document.createElement('div');
-        notification.className = 'notification';
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 255, 136, 0.9);
-            color: #000;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 10000;
-            font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // Убираем уведомление через 3 секунды
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
-
     showScreen(screenId) {
         // Добавляем плавный переход между экранами
         const currentScreen = document.querySelector('.screen.active');
@@ -1685,21 +1827,6 @@ class AwesomeMessenger {
         div.textContent = text;
         return div.innerHTML;
     }
-}
-
-// Глобальные функции для HTML (оставляем только необходимые)
-function openImageModal(url) {
-    window.open(url, '_blank');
-}
-
-function downloadFile(url, filename) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.target = '_blank';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 }
 
 // Инициализация приложения

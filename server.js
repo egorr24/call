@@ -44,20 +44,34 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Настройка multer для загрузки файлов
+// ИМБОВАЯ настройка multer для загрузки файлов
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
-        // Очищаем имя файла от специальных символов
-        const cleanName = file.originalname
-            .replace(/[^a-zA-Z0-9.-]/g, '_') // Заменяем спецсимволы на _
-            .replace(/_{2,}/g, '_') // Убираем множественные _
-            .toLowerCase();
+        // ИМБОВАЯ очистка имени файла
+        const timestamp = Date.now();
+        const randomId = Math.round(Math.random() * 1E9);
         
-        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${cleanName}`;
-        cb(null, uniqueName);
+        // Получаем расширение файла
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        // Очищаем имя файла от всех спецсимволов
+        const cleanName = file.originalname
+            .replace(ext, '') // Убираем расширение
+            .replace(/[^\w\s-]/g, '') // Убираем все кроме букв, цифр, пробелов и дефисов
+            .replace(/\s+/g, '_') // Заменяем пробелы на подчеркивания
+            .replace(/_+/g, '_') // Убираем множественные подчеркивания
+            .toLowerCase()
+            .substring(0, 50); // Ограничиваем длину
+        
+        const finalName = `${timestamp}-${randomId}-${cleanName}${ext}`;
+        
+        console.log('🔥 СОХРАНЯЕМ ФАЙЛ:', finalName);
+        console.log('🔥 ОРИГИНАЛЬНОЕ ИМЯ:', file.originalname);
+        
+        cb(null, finalName);
     }
 });
 
@@ -80,31 +94,131 @@ const upload = multer({
     }
 });
 
-// Раздача загруженных файлов с правильной обработкой
-app.use('/uploads', express.static(uploadsDir, {
-    setHeaders: (res, path) => {
-        // Устанавливаем правильные заголовки для разных типов файлов
-        if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
-            res.setHeader('Content-Type', 'image/jpeg');
-        } else if (path.endsWith('.png')) {
-            res.setHeader('Content-Type', 'image/png');
-        } else if (path.endsWith('.gif')) {
-            res.setHeader('Content-Type', 'image/gif');
-        } else if (path.endsWith('.mp4')) {
-            res.setHeader('Content-Type', 'video/mp4');
-        } else if (path.endsWith('.pdf')) {
-            res.setHeader('Content-Type', 'application/pdf');
+// Раздача загруженных файлов - ИМБОВАЯ ВЕРСИЯ С УЛУЧШЕННОЙ ОБРАБОТКОЙ
+app.use('/uploads', (req, res, next) => {
+    try {
+        // Многоуровневое декодирование URL для правильной обработки кириллицы
+        let decodedPath = req.path;
+        
+        // Декодируем несколько раз для обработки двойного кодирования
+        for (let i = 0; i < 3; i++) {
+            try {
+                const newPath = decodeURIComponent(decodedPath);
+                if (newPath === decodedPath) break; // Больше нечего декодировать
+                decodedPath = newPath;
+            } catch (e) {
+                break; // Ошибка декодирования, останавливаемся
+            }
         }
         
-        // Кэширование файлов
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 часа
+        const fileName = path.basename(decodedPath);
+        const filePath = path.join(uploadsDir, fileName);
+        
+        console.log('🔥 ЗАПРОС ФАЙЛА:', req.path);
+        console.log('🔥 ДЕКОДИРОВАННЫЙ:', decodedPath);
+        console.log('🔥 ИМЯ ФАЙЛА:', fileName);
+        console.log('🔥 ПОЛНЫЙ ПУТЬ:', filePath);
+        
+        // Проверяем существование файла
+        if (fs.existsSync(filePath)) {
+            // Устанавливаем правильные заголовки
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes = {
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg', 
+                '.png': 'image/png',
+                '.gif': 'image/gif',
+                '.webp': 'image/webp',
+                '.mp4': 'video/mp4',
+                '.webm': 'video/webm',
+                '.mov': 'video/quicktime',
+                '.avi': 'video/x-msvideo',
+                '.pdf': 'application/pdf',
+                '.txt': 'text/plain',
+                '.doc': 'application/msword',
+                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                '.zip': 'application/zip',
+                '.rar': 'application/x-rar-compressed'
+            };
+            
+            const mimeType = mimeTypes[ext] || 'application/octet-stream';
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+            
+            console.log('✅ ФАЙЛ НАЙДЕН, ОТПРАВЛЯЕМ:', mimeType);
+            
+            // Отправляем файл
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    console.error('❌ ОШИБКА ОТПРАВКИ ФАЙЛА:', err);
+                    res.status(500).json({ error: 'Ошибка отправки файла' });
+                }
+            });
+        } else {
+            console.log('❌ ФАЙЛ НЕ НАЙДЕН:', filePath);
+            
+            // ИМБОВЫЙ поиск файла с похожим именем
+            try {
+                const files = fs.readdirSync(uploadsDir);
+                console.log('🔍 ДОСТУПНЫЕ ФАЙЛЫ:', files.slice(0, 5)); // Показываем первые 5 для отладки
+                
+                // Извлекаем основную часть имени файла (без timestamp и random)
+                const requestedBaseName = fileName.replace(/^\d+-\d+-/, '').toLowerCase();
+                console.log('🔍 ИЩЕМ БАЗОВОЕ ИМЯ:', requestedBaseName);
+                
+                const similarFile = files.find(file => {
+                    const fileBaseName = file.replace(/^\d+-\d+-/, '').toLowerCase();
+                    return fileBaseName === requestedBaseName || 
+                           fileBaseName.includes(requestedBaseName) ||
+                           requestedBaseName.includes(fileBaseName);
+                });
+                
+                if (similarFile) {
+                    console.log('🎯 НАЙДЕН ПОХОЖИЙ ФАЙЛ:', similarFile);
+                    const similarPath = path.join(uploadsDir, similarFile);
+                    
+                    // Устанавливаем заголовки для найденного файла
+                    const ext = path.extname(similarFile).toLowerCase();
+                    const mimeTypes = {
+                        '.jpg': 'image/jpeg',
+                        '.jpeg': 'image/jpeg', 
+                        '.png': 'image/png',
+                        '.gif': 'image/gif',
+                        '.webp': 'image/webp',
+                        '.mp4': 'video/mp4',
+                        '.webm': 'video/webm',
+                        '.mov': 'video/quicktime',
+                        '.avi': 'video/x-msvideo'
+                    };
+                    
+                    const mimeType = mimeTypes[ext] || 'application/octet-stream';
+                    res.setHeader('Content-Type', mimeType);
+                    res.setHeader('Cache-Control', 'public, max-age=86400');
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    
+                    res.sendFile(similarPath);
+                } else {
+                    console.log('❌ ПОХОЖИЙ ФАЙЛ НЕ НАЙДЕН');
+                    res.status(404).json({ 
+                        error: 'Файл не найден',
+                        requested: fileName,
+                        available: files.length > 0 ? files.slice(0, 3) : []
+                    });
+                }
+            } catch (dirError) {
+                console.error('❌ ОШИБКА ЧТЕНИЯ ДИРЕКТОРИИ:', dirError);
+                res.status(500).json({ error: 'Ошибка доступа к файлам' });
+            }
+        }
+    } catch (error) {
+        console.error('💥 КРИТИЧЕСКАЯ ОШИБКА UPLOADS:', error);
+        res.status(500).json({ error: 'Ошибка сервера при обработке файла' });
     }
-}));
-
-// Обработка ошибок для несуществующих файлов
-app.use('/uploads', (req, res, next) => {
-    res.status(404).json({ error: 'Файл не найден' });
 });
+
+// Убираем дублирующий обработчик ошибок
 
 // Временное хранилище для онлайн пользователей и комнат видеозвонков
 const onlineUsers = new Map();

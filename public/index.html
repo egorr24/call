@@ -35,40 +35,36 @@
             
             <!-- Форма входа -->
             <div id="login-form" class="auth-form active">
-                <form onsubmit="return false;">
-                    <div class="form-group">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="login-email" class="form-input" placeholder="Email" required autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="login-password" class="form-input" placeholder="Пароль" required autocomplete="current-password">
-                    </div>
-                    <button type="submit" class="auth-btn btn-primary" id="login-btn">
-                        <i class="fas fa-sign-in-alt"></i> Войти
-                    </button>
-                </form>
+                <div class="form-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" class="form-input" placeholder="Email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" class="form-input" placeholder="Пароль" required autocomplete="current-password">
+                </div>
+                <button type="button" class="auth-btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> <span>Войти</span>
+                </button>
             </div>
             
             <!-- Форма регистрации -->
             <div id="register-form" class="auth-form">
-                <form onsubmit="return false;">
-                    <div class="form-group">
-                        <i class="fas fa-user"></i>
-                        <input type="text" id="register-username" class="form-input" placeholder="Имя пользователя" required autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="register-email" class="form-input" placeholder="Email" required autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="register-password" class="form-input" placeholder="Пароль (минимум 6 символов)" required autocomplete="new-password">
-                    </div>
-                    <button type="submit" class="auth-btn btn-primary" id="register-btn">
-                        <i class="fas fa-user-plus"></i> Зарегистрироваться
-                    </button>
-                </form>
+                <div class="form-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="register-username" class="form-input" placeholder="Имя пользователя" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="register-email" class="form-input" placeholder="Email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="register-password" class="form-input" placeholder="Пароль (минимум 6 символов)" required autocomplete="new-password">
+                </div>
+                <button type="button" class="auth-btn btn-primary">
+                    <i class="fas fa-user-plus"></i> <span>Зарегистрироваться</span>
+                </button>
             </div>
         </div>
     </div>
@@ -87,13 +83,13 @@
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="icon-btn" onclick="showUsers()" title="Найти пользователей">
+                        <button class="icon-btn" title="Найти пользователей">
                             <i class="fas fa-user-plus"></i>
                         </button>
-                        <button class="icon-btn" onclick="showSettings()" title="Настройки">
+                        <button class="icon-btn" title="Настройки">
                             <i class="fas fa-cog"></i>
                         </button>
-                        <button class="icon-btn" onclick="logout()" title="Выйти">
+                        <button class="icon-btn" title="Выйти">
                             <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </div>
@@ -127,10 +123,10 @@
                             </div>
                         </div>
                         <div class="chat-actions">
-                            <button class="icon-btn" onclick="startVideoCall()" title="Видеозвонок">
+                            <button class="icon-btn" title="Видеозвонок">
                                 <i class="fas fa-video"></i>
                             </button>
-                            <button class="icon-btn" onclick="startAudioCall()" title="Аудиозвонок">
+                            <button class="icon-btn" title="Аудиозвонок">
                                 <i class="fas fa-phone"></i>
                             </button>
                         </div>
@@ -143,14 +139,14 @@
                     <div class="message-input-container">
                         <div class="message-input">
                             <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar" multiple>
-                            <button class="icon-btn" onclick="selectFile()" title="Прикрепить файл">
+                            <button class="icon-btn" title="Прикрепить файл">
                                 <i class="fas fa-paperclip"></i>
                             </button>
-                            <button class="icon-btn" onclick="selectImage()" title="Отправить фото">
+                            <button class="icon-btn" title="Отправить фото">
                                 <i class="fas fa-image"></i>
                             </button>
                             <input type="text" id="message-input" placeholder="Введите сообщение..." maxlength="1000">
-                            <button class="icon-btn" onclick="sendMessage()" title="Отправить">
+                            <button class="icon-btn send-btn" title="Отправить">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
@@ -166,7 +162,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-cog"></i> Настройки профиля</h3>
-                <button class="close-btn" onclick="closeSettingsModal()">
+                <button class="close-btn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -176,7 +172,7 @@
                     <div class="avatar-section">
                         <img id="settings-avatar" src="" alt="Avatar" class="settings-avatar">
                         <input type="file" id="avatar-input" style="display: none;" accept="image/*">
-                        <button class="btn-secondary" onclick="selectAvatar()">Изменить аватар</button>
+                        <button class="btn-secondary">Изменить аватар</button>
                     </div>
                 </div>
                 
@@ -201,8 +197,8 @@
                 </div>
                 
                 <div class="settings-actions">
-                    <button class="btn-primary" onclick="saveSettings()">Сохранить изменения</button>
-                    <button class="btn-secondary" onclick="closeSettingsModal()">Отмена</button>
+                    <button class="btn-primary">Сохранить изменения</button>
+                    <button class="btn-secondary">Отмена</button>
                 </div>
             </div>
         </div>
@@ -213,7 +209,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-users"></i> Найти пользователей</h3>
-                <button class="close-btn" onclick="closeUsersModal()">
+                <button class="close-btn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -238,16 +234,16 @@
             </div>
             
             <div class="call-controls">
-                <button id="toggle-video-btn" class="control-btn video-btn" onclick="toggleVideo()">
+                <button id="toggle-video-btn" class="control-btn video-btn">
                     <i class="fas fa-video"></i>
                 </button>
-                <button id="toggle-audio-btn" class="control-btn audio-btn" onclick="toggleAudio()">
+                <button id="toggle-audio-btn" class="control-btn audio-btn">
                     <i class="fas fa-microphone"></i>
                 </button>
-                <button class="control-btn screen-btn" onclick="shareScreen()">
+                <button class="control-btn screen-btn">
                     <i class="fas fa-desktop"></i>
                 </button>
-                <button class="control-btn end-btn" onclick="endCall()">
+                <button class="control-btn end-btn">
                     <i class="fas fa-phone-slash"></i>
                 </button>
             </div>
