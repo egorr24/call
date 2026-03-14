@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#667eea">
     <title>Awesome Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -123,14 +126,19 @@
                     
                     <div class="message-input-container">
                         <div class="message-input">
-                            <button class="icon-btn" title="Прикрепить файл">
+                            <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar" multiple>
+                            <button class="icon-btn" onclick="selectFile()" title="Прикрепить файл">
                                 <i class="fas fa-paperclip"></i>
+                            </button>
+                            <button class="icon-btn" onclick="selectImage()" title="Отправить фото">
+                                <i class="fas fa-image"></i>
                             </button>
                             <input type="text" id="message-input" placeholder="Введите сообщение..." maxlength="1000">
                             <button class="icon-btn" onclick="sendMessage()" title="Отправить">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
+                        <div id="file-preview" class="file-preview" style="display: none;"></div>
                     </div>
                 </div>
             </div>

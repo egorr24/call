@@ -6,6 +6,7 @@ class AwesomeMessenger {
         this.token = localStorage.getItem('messenger_token');
         this.chats = new Map();
         this.users = new Map();
+        this.selectedFiles = [];
         
         // Видеозвонки
         this.localVideo = document.getElementById('local-video');
@@ -55,6 +56,35 @@ class AwesomeMessenger {
         document.getElementById('user-search').addEventListener('input', (e) => {
             this.searchUsers(e.target.value);
         });
+
+        // Обработка выбора файлов
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            this.handleFileSelect(e.target.files);
+        });
+
+        // Мобильная навигация - кнопка назад
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.chat-header') && window.innerWidth <= 768) {
+                const rect = e.target.closest('.chat-header').getBoundingClientRect();
+                if (e.clientX < 50) { // Клик в левой части заголовка (кнопка назад)
+                    this.goBackToChats();
+                }
+            }
+        });
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                // Возвращаем десктопный вид
+                document.querySelector('.sidebar').classList.remove('hidden');
+                document.querySelector('.chat-area').classList.remove('active');
+            }
+        });
+    }
+
+    goBackToChats() {
+        document.querySelector('.sidebar').classList.remove('hidden');
+        document.querySelector('.chat-area').classList.remove('active');
     }
 
     switchAuthTab(tab) {
@@ -67,13 +97,15 @@ class AwesomeMessenger {
 
     async verifyToken() {
         try {
-            const response = await fetch('/api/users', {
+            const response = await fetch('/api/me', {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
             });
 
             if (response.ok) {
+                const userData = await response.json();
+                this.currentUser = userData.user;
                 this.initMessenger();
             } else {
                 localStorage.removeItem('messenger_token');
@@ -81,6 +113,7 @@ class AwesomeMessenger {
             }
         } catch (error) {
             console.error('Ошибка проверки токена:', error);
+            localStorage.removeItem('messenger_token');
             this.showScreen('auth-screen');
         }
     }
@@ -213,6 +246,23 @@ class AwesomeMessenger {
         this.socket.on('signal', async (data) => {
             await this.handleSignal(data.signal, data.from);
         });
+
+        // Обработка входящих звонков
+        this.socket.on('incoming-call', (data) => {
+            this.handleIncomingCall(data);
+        });
+
+        this.socket.on('call-accepted', (data) => {
+            this.handleCallAccepted(data);
+        });
+
+        this.socket.on('call-rejected', (data) => {
+            this.handleCallRejected(data);
+        });
+
+        this.socket.on('call-ended', (data) => {
+            this.handleCallEnded(data);
+        });
     }
 
     loadUserInfo() {
@@ -290,6 +340,12 @@ class AwesomeMessenger {
         document.getElementById('no-chat-selected').style.display = 'none';
         document.getElementById('chat-container').style.display = 'flex';
 
+        // Мобильная навигация
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.add('hidden');
+            document.querySelector('.chat-area').classList.add('active');
+        }
+
         // Загружаем информацию о чате
         const chat = this.chats.get(chatId);
         if (chat) {
@@ -338,10 +394,44 @@ class AwesomeMessenger {
         messageDiv.className = `message ${message.sender === this.currentUser.id ? 'own' : ''}`;
 
         const time = this.formatTime(new Date(message.timestamp));
+        let fileContent = '';
+
+        // Обработка файлов
+        if (message.fileData) {
+            const file = message.fileData;
+            if (file.mimetype.startsWith('image/')) {
+                fileContent = `
+                    <div class="message-file">
+                        <img src="${file.url}" alt="${file.originalName}" class="message-image" onclick="openImageModal('${file.url}')">
+                    </div>
+                `;
+            } else if (file.mimetype.startsWith('video/')) {
+                fileContent = `
+                    <div class="message-file">
+                        <video controls class="message-video">
+                            <source src="${file.url}" type="${file.mimetype}">
+                        </video>
+                    </div>
+                `;
+            } else {
+                fileContent = `
+                    <div class="message-file">
+                        <div class="message-document" onclick="downloadFile('${file.url}', '${file.originalName}')">
+                            <i class="fas fa-file"></i>
+                            <div class="document-info">
+                                <div class="document-name">${file.originalName}</div>
+                                <div class="document-size">${this.formatFileSize(file.size)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
         messageDiv.innerHTML = `
             <div class="message-content">
-                <div class="message-text">${this.escapeHtml(message.text)}</div>
+                ${message.text ? `<div class="message-text">${this.escapeHtml(message.text)}</div>` : ''}
+                ${fileContent}
                 <div class="message-time">${time}</div>
             </div>
         `;
@@ -349,19 +439,177 @@ class AwesomeMessenger {
         return messageDiv;
     }
 
-    sendMessage() {
+    async sendMessage() {
         const input = document.getElementById('message-input');
         const text = input.value.trim();
 
-        if (!text || !this.currentChat) return;
+        if (!text && this.selectedFiles.length === 0) return;
+        if (!this.currentChat) return;
 
-        this.socket.emit('send-message', {
-            chatId: this.currentChat,
-            text: text,
-            type: 'text'
-        });
+        // Если есть файлы, отправляем их
+        if (this.selectedFiles.length > 0) {
+            for (const file of this.selectedFiles) {
+                await this.sendFileMessage(file, text);
+            }
+            this.clearSelectedFiles();
+        } else if (text) {
+            // Отправляем текстовое сообщение
+            this.socket.emit('send-message', {
+                chatId: this.currentChat,
+                text: text,
+                type: 'text'
+            });
+        }
 
         input.value = '';
+    }
+
+    async sendFileMessage(file, text = '') {
+        try {
+            // Загружаем файл на сервер
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                
+                // Отправляем сообщение с файлом
+                this.socket.emit('send-message', {
+                    chatId: this.currentChat,
+                    text: text,
+                    type: 'file',
+                    fileData: result.file
+                });
+            } else {
+                alert('Ошибка загрузки файла');
+            }
+        } catch (error) {
+            console.error('Ошибка отправки файла:', error);
+            alert('Ошибка отправки файла');
+        }
+    }
+
+    selectFile() {
+        document.getElementById('file-input').click();
+    }
+
+    selectImage() {
+        const input = document.getElementById('file-input');
+        input.accept = 'image/*';
+        input.click();
+    }
+
+    handleFileSelect(files) {
+        for (const file of files) {
+            if (file.size > 50 * 1024 * 1024) { // 50MB лимит
+                alert(`Файл ${file.name} слишком большой (максимум 50MB)`);
+                continue;
+            }
+            this.selectedFiles.push(file);
+        }
+        this.updateFilePreview();
+    }
+
+    updateFilePreview() {
+        const preview = document.getElementById('file-preview');
+        
+        if (this.selectedFiles.length === 0) {
+            preview.style.display = 'none';
+            return;
+        }
+
+        preview.style.display = 'flex';
+        preview.innerHTML = '';
+
+        this.selectedFiles.forEach((file, index) => {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'file-preview-item';
+
+            let content = '';
+            if (file.type.startsWith('image/')) {
+                const url = URL.createObjectURL(file);
+                content = `<img src="${url}" alt="${file.name}">`;
+            } else {
+                content = `<i class="fas fa-file" style="font-size: 40px; color: #667eea;"></i>`;
+            }
+
+            previewItem.innerHTML = `
+                ${content}
+                <div class="file-info">
+                    <div>${file.name}</div>
+                    <div>${this.formatFileSize(file.size)}</div>
+                </div>
+                <button class="remove-file" onclick="app.removeFile(${index})">×</button>
+            `;
+
+            preview.appendChild(previewItem);
+        });
+    }
+
+    removeFile(index) {
+        this.selectedFiles.splice(index, 1);
+        this.updateFilePreview();
+    }
+
+    handleIncomingCall(data) {
+        const { fromUserId, callType, chatId, fromUsername } = data;
+        
+        // Показываем уведомление о входящем звонке
+        if (confirm(`Входящий ${callType === 'video' ? 'видео' : 'аудио'}звонок от ${fromUsername}. Принять?`)) {
+            this.acceptCall(data);
+        } else {
+            this.rejectCall(data);
+        }
+    }
+
+    async acceptCall(callData) {
+        this.currentChat = callData.chatId;
+        
+        await this.initializeMedia();
+        this.setupPeerConnection();
+        this.showScreen('video-call-screen');
+        
+        if (callData.callType === 'audio') {
+            this.toggleVideo(); // Отключаем видео для аудиозвонка
+        }
+        
+        this.socket.emit('accept-call', {
+            callId: callData.callId,
+            targetUserId: callData.fromUserId
+        });
+        
+        document.getElementById('call-status').textContent = 'Подключение...';
+        this.startCallTimer();
+    }
+
+    rejectCall(callData) {
+        this.socket.emit('reject-call', {
+            callId: callData.callId,
+            targetUserId: callData.fromUserId
+        });
+    }
+
+    handleCallAccepted(data) {
+        document.getElementById('call-status').textContent = 'Подключение...';
+        // Создаем offer для начала соединения
+        this.createOffer();
+    }
+
+    handleCallRejected(data) {
+        alert('Звонок отклонен');
+        this.endCall();
+    }
+
+    handleCallEnded(data) {
+        this.endCall();
     }
 
     handleNewMessage(data) {
@@ -489,20 +737,44 @@ class AwesomeMessenger {
     async startVideoCall() {
         if (!this.currentChat) return;
         
+        const chat = this.chats.get(this.currentChat);
+        if (!chat) return;
+        
+        // Уведомляем собеседника о входящем звонке
+        this.socket.emit('initiate-call', {
+            targetUserId: chat.user.id,
+            callType: 'video',
+            chatId: this.currentChat
+        });
+        
         await this.initializeMedia();
         this.setupPeerConnection();
         this.showScreen('video-call-screen');
         
-        const roomId = `call_${this.currentChat}_${Date.now()}`;
-        this.socket.emit('create-room', roomId);
-        
+        document.getElementById('call-status').textContent = 'Вызов...';
         this.startCallTimer();
     }
 
     async startAudioCall() {
-        // Аналогично видеозвонку, но только аудио
-        await this.startVideoCall();
-        this.toggleVideo(); // Отключаем видео
+        if (!this.currentChat) return;
+        
+        const chat = this.chats.get(this.currentChat);
+        if (!chat) return;
+        
+        // Уведомляем собеседника о входящем звонке
+        this.socket.emit('initiate-call', {
+            targetUserId: chat.user.id,
+            callType: 'audio',
+            chatId: this.currentChat
+        });
+        
+        await this.initializeMedia();
+        this.setupPeerConnection();
+        this.showScreen('video-call-screen');
+        
+        document.getElementById('call-status').textContent = 'Вызов...';
+        this.toggleVideo(); // Отключаем видео для аудиозвонка
+        this.startCallTimer();
     }
 
     async initializeMedia() {
@@ -690,8 +962,18 @@ class AwesomeMessenger {
             this.peerConnection.close();
         }
         
+        // Уведомляем сервер о завершении звонка
+        this.socket.emit('end-call', {
+            chatId: this.currentChat
+        });
+        
         this.stopCallTimer();
         this.showScreen('messenger-screen');
+    }
+
+    clearSelectedFiles() {
+        this.selectedFiles = [];
+        this.updateFilePreview();
     }
 
     startCallTimer() {
@@ -740,6 +1022,14 @@ class AwesomeMessenger {
         } else {
             return date.toLocaleDateString('ru-RU');
         }
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
     escapeHtml(text) {
@@ -796,6 +1086,27 @@ function shareScreen() {
 
 function endCall() {
     app.endCall();
+}
+
+function selectFile() {
+    app.selectFile();
+}
+
+function selectImage() {
+    app.selectImage();
+}
+
+function openImageModal(url) {
+    window.open(url, '_blank');
+}
+
+function downloadFile(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 // Инициализация приложения

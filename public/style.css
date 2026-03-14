@@ -455,6 +455,101 @@ body {
     color: #667eea;
 }
 
+/* Превью файлов */
+.file-preview {
+    padding: 10px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.file-preview-item {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-width: 200px;
+}
+
+.file-preview-item img {
+    max-width: 100%;
+    max-height: 100px;
+    border-radius: 4px;
+}
+
+.file-preview-item .file-info {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+}
+
+.file-preview-item .remove-file {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* Сообщения с файлами */
+.message-file {
+    margin-top: 8px;
+}
+
+.message-image {
+    max-width: 300px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.message-video {
+    max-width: 300px;
+    border-radius: 8px;
+}
+
+.message-document {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.message-document:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.message-document i {
+    font-size: 24px;
+    color: #667eea;
+}
+
+.document-info {
+    flex: 1;
+}
+
+.document-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.document-size {
+    font-size: 12px;
+    opacity: 0.7;
+}
+
 /* Модальное окно */
 .modal {
     display: none;
@@ -653,32 +748,246 @@ body {
     font-size: 14px;
 }
 
-/* Адаптивность */
+/* Адаптивность - ПОЛНОСТЬЮ ПЕРЕДЕЛАННАЯ МОБИЛЬНАЯ ВЕРСИЯ */
 @media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+
+    /* Мессенджер контейнер */
     .messenger-container {
-        flex-direction: column;
+        flex-direction: row; /* Оставляем горизонтальное расположение */
+        height: 100vh;
     }
     
+    /* Боковая панель на мобильных */
     .sidebar {
         width: 100%;
-        height: 100vh;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 100;
+        transition: transform 0.3s ease;
     }
     
+    .sidebar.hidden {
+        transform: translateX(-100%);
+    }
+    
+    /* Область чата на мобильных */
     .chat-area {
-        position: absolute;
-        top: 0;
-        left: 0;
         width: 100%;
-        height: 100vh;
-        background: white;
-        z-index: 10;
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 50;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .chat-area.active {
+        transform: translateX(0);
+    }
+    
+    /* Кнопка назад в чате */
+    .chat-header::before {
+        content: '←';
+        font-size: 24px;
+        font-weight: bold;
+        margin-right: 15px;
+        cursor: pointer;
+        color: #667eea;
+    }
+    
+    /* Заголовки и текст */
+    .auth-header h1 {
+        font-size: 2rem;
+    }
+    
+    .sidebar-header {
+        padding: 15px;
+    }
+    
+    .user-info .avatar {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .chat-item {
+        padding: 12px 15px;
+    }
+    
+    .chat-item .avatar {
+        width: 45px;
+        height: 45px;
+    }
+    
+    /* Сообщения */
+    .messages-container {
+        padding: 15px;
+    }
+    
+    .message-content {
+        max-width: 85%;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+    
+    .message-image {
+        max-width: 250px;
+    }
+    
+    .message-video {
+        max-width: 250px;
+    }
+    
+    /* Ввод сообщений */
+    .message-input-container {
+        padding: 15px;
+    }
+    
+    .message-input {
+        padding: 8px;
+    }
+    
+    .message-input input {
+        padding: 10px 12px;
+        font-size: 16px; /* Предотвращает зум на iOS */
+    }
+    
+    .icon-btn {
+        padding: 8px;
+        font-size: 18px;
+    }
+    
+    /* Видеозвонки на мобильных */
+    .video-call-container {
+        padding: 10px;
     }
     
     .local-video {
         width: 120px;
         height: 90px;
-        top: 10px;
-        right: 10px;
+        top: 20px;
+        right: 20px;
+    }
+    
+    .call-controls {
+        bottom: 40px;
+        gap: 20px;
+    }
+    
+    .control-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+    }
+    
+    .call-info {
+        top: 20px;
+        left: 20px;
+    }
+    
+    .call-info span {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    
+    /* Модальные окна */
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+        max-height: 85vh;
+    }
+    
+    .modal-header {
+        padding: 15px;
+    }
+    
+    .modal-body {
+        padding: 15px;
+        max-height: 70vh;
+    }
+    
+    /* Превью файлов */
+    .file-preview {
+        padding: 10px 15px;
+        gap: 8px;
+    }
+    
+    .file-preview-item {
+        max-width: 150px;
+        padding: 8px;
+    }
+    
+    /* Поиск */
+    .search-bar {
+        padding: 10px 15px;
+    }
+    
+    .search-bar input {
+        font-size: 16px; /* Предотвращает зум на iOS */
+    }
+    
+    /* Авторизация на мобильных */
+    .auth-container {
+        margin: 20px;
+        padding: 30px 25px;
+        max-width: none;
+        width: calc(100% - 40px);
+    }
+    
+    .form-group input {
+        font-size: 16px; /* Предотвращает зум на iOS */
+        padding: 12px 12px 12px 40px;
+    }
+    
+    /* Пользователи */
+    .user-item {
+        padding: 15px 12px;
+    }
+    
+    .user-item .avatar {
+        width: 45px;
+        height: 45px;
+    }
+    
+    /* Фиксы для iOS Safari */
+    input, textarea {
+        -webkit-appearance: none;
+        border-radius: 10px;
+    }
+    
+    /* Предотвращение зума при фокусе на input */
+    input[type="text"], 
+    input[type="email"], 
+    input[type="password"] {
+        font-size: 16px !important;
+    }
+}
+
+/* Очень маленькие экраны (iPhone SE и подобные) */
+@media (max-width: 375px) {
+    .auth-container {
+        margin: 15px;
+        padding: 25px 20px;
+    }
+    
+    .message-content {
+        max-width: 90%;
+        padding: 8px 12px;
+    }
+    
+    .message-image,
+    .message-video {
+        max-width: 200px;
+    }
+    
+    .local-video {
+        width: 100px;
+        height: 75px;
+        top: 15px;
+        right: 15px;
     }
     
     .call-controls {
@@ -689,7 +998,23 @@ body {
     .control-btn {
         width: 50px;
         height: 50px;
-        font-size: 20px;
+        font-size: 18px;
+    }
+}
+
+/* Ландшафтная ориентация на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+    .video-call-container {
+        flex-direction: row;
+    }
+    
+    .local-video {
+        width: 150px;
+        height: 100px;
+    }
+    
+    .call-controls {
+        bottom: 20px;
     }
 }
 

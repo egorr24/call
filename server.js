@@ -6,6 +6,8 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,8 +23,47 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-in-product
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Создаем папку для загрузок
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Настройка multer для загрузки файлов
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadsDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${file.originalname}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 50 * 1024 * 1024 // 50MB лимит
+    },
+    fileFilter: (req, file, cb) => {
+        // Разрешенные типы файлов
+        const allowedTypes = /jpeg|jpg|png|gif|mp4|mov|avi|pdf|doc|docx|txt|zip|rar/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Неподдерживаемый тип файла'));
+        }
+    }
+});
+
+// Раздача загруженных файлов
+app.use('/uploads', express.static(uploadsDir));
 
 // Временное хранилище (в продакшене используй MongoDB)
 const users = new Map();
@@ -117,6 +158,24 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// Получить информацию о текущем пользователе
+app.get('/api/me', authenticateToken, (req, res) => {
+    const user = users.get(req.userId);
+    if (!user) {
+        return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    res.json({
+        success: true,
+        user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar
+        }
+    });
+});
+
 // Получить список пользователей
 app.get('/api/users', authenticateToken, (req, res) => {
     const userList = Array.from(users.values()).map(user => ({
@@ -175,6 +234,34 @@ app.get('/api/chats/:chatId/messages', authenticateToken, (req, res) => {
     res.json(chatMessages);
 });
 
+// Загрузка файлов
+app.post('/api/upload', authenticateToken, upload.single('file'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
+        }
+
+        const fileInfo = {
+            id: uuidv4(),
+            originalName: req.file.originalname,
+            filename: req.file.filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            url: `/uploads/${req.file.filename}`,
+            uploadedBy: req.userId,
+            uploadedAt: new Date()
+        };
+
+        res.json({
+            success: true,
+            file: fileInfo
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки файла:', error);
+        res.status(500).json({ error: 'Ошибка загрузки файла' });
+    }
+});
+
 // Middleware для проверки токена
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -224,7 +311,7 @@ io.on('connection', (socket) => {
     
     // Отправка сообщения
     socket.on('send-message', (data) => {
-        const { chatId, text, type = 'text' } = data;
+        const { chatId, text, type = 'text', fileData } = data;
         
         if (!socket.userId) return;
         
@@ -234,6 +321,7 @@ io.on('connection', (socket) => {
             senderName: socket.username,
             text,
             type,
+            fileData: fileData || null,
             timestamp: new Date(),
             read: false
         };
@@ -276,7 +364,52 @@ io.on('connection', (socket) => {
         socket.emit('chat-created', { chatId });
     });
     
-    // Видеозвонки (из предыдущей версии)
+    // Видеозвонки - улучшенная синхронизация
+    socket.on('initiate-call', (data) => {
+        const { targetUserId, callType, chatId } = data;
+        const targetSocketId = onlineUsers.get(targetUserId);
+        
+        if (targetSocketId) {
+            const callId = uuidv4();
+            const caller = users.get(socket.userId);
+            
+            io.to(targetSocketId).emit('incoming-call', {
+                callId,
+                fromUserId: socket.userId,
+                fromUsername: caller ? caller.username : 'Неизвестный',
+                callType,
+                chatId
+            });
+        } else {
+            socket.emit('call-failed', { error: 'Пользователь не в сети' });
+        }
+    });
+
+    socket.on('accept-call', (data) => {
+        const { callId, targetUserId } = data;
+        const targetSocketId = onlineUsers.get(targetUserId);
+        
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('call-accepted', { callId });
+        }
+    });
+
+    socket.on('reject-call', (data) => {
+        const { callId, targetUserId } = data;
+        const targetSocketId = onlineUsers.get(targetUserId);
+        
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('call-rejected', { callId });
+        }
+    });
+
+    socket.on('end-call', (data) => {
+        const { chatId } = data;
+        // Уведомляем всех участников чата о завершении звонка
+        socket.to(chatId).emit('call-ended', {});
+    });
+
+    // Старые обработчики видеозвонков (для совместимости)
     socket.on('create-room', (roomId) => {
         if (!rooms.has(roomId)) {
             rooms.set(roomId, {
