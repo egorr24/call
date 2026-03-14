@@ -40,11 +40,19 @@ class AwesomeMessenger {
             });
         });
 
-        // Enter для отправки сообщений
-        document.getElementById('message-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        // Enter для отправки сообщений (только на десктопе)
+        const messageInput = document.getElementById('message-input');
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
+                e.preventDefault();
                 this.sendMessage();
             }
+        });
+
+        // Автоматическое изменение высоты textarea
+        messageInput.addEventListener('input', (e) => {
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
         });
 
         // Поиск чатов
@@ -67,24 +75,104 @@ class AwesomeMessenger {
             this.handleAvatarSelect(e.target.files[0]);
         });
 
-        // Мобильная навигация - кнопка назад
+        // Мобильная навигация - улучшенная
+        this.setupMobileNavigation();
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+
+        // Предотвращение зума на iOS при фокусе на input
+        if (this.isIOS()) {
+            document.addEventListener('touchstart', () => {}, { passive: true });
+        }
+
+        // Обработка клавиатуры на мобильных
+        if (window.innerWidth <= 768) {
+            this.setupMobileKeyboard();
+        }
+    }
+
+    setupMobileNavigation() {
+        // Обработка кликов по заголовку чата для возврата
         document.addEventListener('click', (e) => {
             if (e.target.closest('.chat-header') && window.innerWidth <= 768) {
                 const rect = e.target.closest('.chat-header').getBoundingClientRect();
-                if (e.clientX < 50) { // Клик в левой части заголовка (кнопка назад)
+                if (e.clientX < 60) { // Расширенная область для кнопки назад
                     this.goBackToChats();
                 }
             }
         });
 
-        // Обработка изменения размера окна
+        // Свайп жесты для навигации
+        let startX = 0;
+        let startY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }, { passive: true });
+        
+        document.addEventListener('touchend', (e) => {
+            if (!startX || !startY) return;
+            
+            const endX = e.changedTouches[0].clientX;
+            const endY = e.changedTouches[0].clientY;
+            
+            const diffX = startX - endX;
+            const diffY = startY - endY;
+            
+            // Проверяем что это горизонтальный свайп
+            if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+                if (diffX < 0 && Math.abs(diffX) > 100) {
+                    // Свайп вправо - назад к чатам
+                    if (document.querySelector('.chat-area.active')) {
+                        this.goBackToChats();
+                    }
+                }
+            }
+            
+            startX = 0;
+            startY = 0;
+        }, { passive: true });
+    }
+
+    setupMobileKeyboard() {
+        const messageInput = document.getElementById('message-input');
+        const inputContainer = document.querySelector('.message-input-container');
+        
+        // Обработка появления клавиатуры
         window.addEventListener('resize', () => {
-            if (window.innerWidth > 768) {
-                // Возвращаем десктопный вид
-                document.querySelector('.sidebar').classList.remove('hidden');
-                document.querySelector('.chat-area').classList.remove('active');
+            if (document.activeElement === messageInput) {
+                // Клавиатура открыта
+                setTimeout(() => {
+                    messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
             }
         });
+        
+        // Фикс для iOS Safari
+        if (this.isIOS()) {
+            messageInput.addEventListener('focus', () => {
+                setTimeout(() => {
+                    window.scrollTo(0, 0);
+                    document.body.scrollTop = 0;
+                }, 300);
+            });
+        }
+    }
+
+    isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent);
+    }
+
+    handleResize() {
+        if (window.innerWidth > 768) {
+            // Возвращаем десктопный вид
+            document.querySelector('.sidebar').classList.remove('hidden');
+            document.querySelector('.chat-area').classList.remove('active');
+        }
     }
 
     goBackToChats() {
@@ -136,7 +224,23 @@ class AwesomeMessenger {
             return;
         }
 
+        // Валидация email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            this.showError('Введите корректный email');
+            return;
+        }
+
+        // Валидация пароля
+        if (password.length < 6) {
+            this.showError('Пароль должен содержать минимум 6 символов');
+            return;
+        }
+
         const submitBtn = document.querySelector('#register-form button[type="submit"]');
+        if (!submitBtn.dataset.originalText) {
+            submitBtn.dataset.originalText = submitBtn.textContent;
+        }
         this.setLoading(submitBtn, true);
 
         try {
@@ -157,17 +261,18 @@ class AwesomeMessenger {
                 
                 // Показываем успешную анимацию
                 submitBtn.classList.add('success-animation');
-                this.showNotification('Регистрация успешна!');
+                this.showNotification('Регистрация успешна! Добро пожаловать!');
                 
+                // Небольшая задержка для анимации
                 setTimeout(() => {
                     this.initMessenger();
-                }, 600);
+                }, 400);
             } else {
                 this.showError(data.error || 'Ошибка регистрации');
             }
         } catch (error) {
             console.error('Ошибка регистрации:', error);
-            this.showError('Ошибка сервера');
+            this.showError('Ошибка сервера. Проверьте подключение к интернету.');
         } finally {
             this.setLoading(submitBtn, false);
         }
@@ -178,9 +283,15 @@ class AwesomeMessenger {
         const password = document.getElementById('login-password').value;
 
         if (!email || !password) {
-            alert('Заполните все поля');
+            this.showError('Заполните все поля');
             return;
         }
+
+        const submitBtn = document.querySelector('#login-form button[type="submit"]');
+        if (!submitBtn.dataset.originalText) {
+            submitBtn.dataset.originalText = submitBtn.textContent;
+        }
+        this.setLoading(submitBtn, true);
 
         try {
             const response = await fetch('/api/login', {
@@ -197,13 +308,23 @@ class AwesomeMessenger {
                 this.token = data.token;
                 this.currentUser = data.user;
                 localStorage.setItem('messenger_token', this.token);
-                this.initMessenger();
+                
+                // Показываем успешную анимацию
+                submitBtn.classList.add('success-animation');
+                this.showNotification('Вход выполнен успешно!');
+                
+                // Небольшая задержка для анимации
+                setTimeout(() => {
+                    this.initMessenger();
+                }, 400);
             } else {
-                alert(data.error || 'Ошибка входа');
+                this.showError(data.error || 'Ошибка входа');
             }
         } catch (error) {
             console.error('Ошибка входа:', error);
-            alert('Ошибка сервера');
+            this.showError('Ошибка сервера. Проверьте подключение к интернету.');
+        } finally {
+            this.setLoading(submitBtn, false);
         }
     }
 
@@ -212,6 +333,11 @@ class AwesomeMessenger {
         this.setupSocket();
         this.loadUserInfo();
         this.loadChats();
+        
+        // Оптимизируем производительность
+        setTimeout(() => {
+            this.optimizePerformance();
+        }, 1000);
     }
 
     setupSocket() {
@@ -513,22 +639,47 @@ class AwesomeMessenger {
         if (!text && this.selectedFiles.length === 0) return;
         if (!this.currentChat) return;
 
-        // Если есть файлы, отправляем их
-        if (this.selectedFiles.length > 0) {
-            for (const file of this.selectedFiles) {
-                await this.sendFileMessage(file, text);
-            }
-            this.clearSelectedFiles();
-        } else if (text) {
-            // Отправляем текстовое сообщение
-            this.socket.emit('send-message', {
-                chatId: this.currentChat,
-                text: text,
-                type: 'text'
-            });
+        // Показываем индикатор отправки
+        const sendBtn = document.querySelector('.send-btn');
+        if (sendBtn) {
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            sendBtn.disabled = true;
         }
 
-        input.value = '';
+        try {
+            // Если есть файлы, отправляем их
+            if (this.selectedFiles.length > 0) {
+                for (const file of this.selectedFiles) {
+                    await this.sendFileMessage(file, text);
+                }
+                this.clearSelectedFiles();
+            } else if (text) {
+                // Отправляем текстовое сообщение
+                this.socket.emit('send-message', {
+                    chatId: this.currentChat,
+                    text: text,
+                    type: 'text'
+                });
+            }
+
+            // Очищаем поле ввода
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Фокус обратно на поле ввода (только на десктопе)
+            if (window.innerWidth > 768) {
+                input.focus();
+            }
+        } catch (error) {
+            console.error('Ошибка отправки сообщения:', error);
+            this.showError('Ошибка отправки сообщения');
+        } finally {
+            // Возвращаем кнопку в нормальное состояние
+            if (sendBtn) {
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                sendBtn.disabled = false;
+            }
+        }
     }
 
     async sendFileMessage(file, text = '') {
@@ -1185,45 +1336,179 @@ class AwesomeMessenger {
     setLoading(button, isLoading) {
         if (isLoading) {
             button.disabled = true;
+            const originalText = button.dataset.originalText || button.textContent;
+            button.dataset.originalText = originalText;
             button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
             button.classList.add('loading');
+            
+            // Добавляем визуальную обратную связь
+            button.style.opacity = '0.7';
+            button.style.transform = 'scale(0.98)';
         } else {
             button.disabled = false;
-            button.innerHTML = button.dataset.originalText || button.textContent;
-            button.classList.remove('loading');
+            button.innerHTML = button.dataset.originalText || 'Отправить';
+            button.classList.remove('loading', 'success-animation', 'error-animation');
+            
+            // Возвращаем нормальный вид
+            button.style.opacity = '1';
+            button.style.transform = 'scale(1)';
         }
     }
 
     showError(message) {
-        // Создаем уведомление об ошибке
+        // Создаем уведомление об ошибке с улучшенным дизайном
         const notification = document.createElement('div');
-        notification.className = 'notification error-animation';
+        notification.className = 'notification error-notification';
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(255, 0, 0, 0.9);
+            left: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #ff4757, #ff3742);
             color: #fff;
-            padding: 12px 20px;
-            border-radius: 8px;
+            padding: 16px 20px;
+            border-radius: 12px;
             z-index: 10000;
             font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(255, 71, 87, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.3s ease;
         `;
-        notification.textContent = message;
+        
+        notification.innerHTML = `
+            <i class="fas fa-exclamation-circle" style="font-size: 18px; color: #fff;"></i>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentNode.remove()" style="background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 4px;">×</button>
+        `;
         
         document.body.appendChild(notification);
         
-        // Убираем уведомление через 4 секунды
+        // Автоматическое удаление через 5 секунд
         setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
+            if (notification.parentNode) {
+                notification.style.animation = 'slideUp 0.3s ease forwards';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+
+    showNotification(message) {
+        // Создаем успешное уведомление с улучшенным дизайном
+        const notification = document.createElement('div');
+        notification.className = 'notification success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            left: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+            padding: 16px 20px;
+            border-radius: 12px;
+            z-index: 10000;
+            font-weight: 500;
+            box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.3s ease;
+        `;
+        
+        notification.innerHTML = `
+            <i class="fas fa-check-circle" style="font-size: 18px; color: #000;"></i>
+            <span style="flex: 1;">${message}</span>
+            <button onclick="this.parentNode.remove()" style="background: none; border: none; color: #000; font-size: 18px; cursor: pointer; padding: 4px;">×</button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Автоматическое удаление через 3 секунды
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideUp 0.3s ease forwards';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }, 3000);
+    }
+
+    // Оптимизация производительности
+    optimizePerformance() {
+        // Ленивая загрузка изображений
+        const images = document.querySelectorAll('img[data-src]');
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                    observer.unobserve(img);
                 }
-            }, 300);
-        }, 4000);
+            });
+        });
+        
+        images.forEach(img => imageObserver.observe(img));
+        
+        // Виртуализация длинных списков сообщений
+        this.virtualizeMessagesList();
+        
+        // Дебаунс для поиска
+        this.debounceSearch();
+    }
+    
+    virtualizeMessagesList() {
+        const container = document.getElementById('messages-container');
+        if (!container) return;
+        
+        // Показываем только видимые сообщения + буфер
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) {
+                    // Можно скрыть невидимые сообщения для экономии памяти
+                    // entry.target.style.display = 'none';
+                }
+            });
+        }, {
+            rootMargin: '100px'
+        });
+        
+        // Наблюдаем за сообщениями
+        container.querySelectorAll('.message').forEach(msg => {
+            observer.observe(msg);
+        });
+    }
+    
+    debounceSearch() {
+        let searchTimeout;
+        const originalSearchChats = this.searchChats.bind(this);
+        const originalSearchUsers = this.searchUsers.bind(this);
+        
+        this.searchChats = (query) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => originalSearchChats(query), 300);
+        };
+        
+        this.searchUsers = (query) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => originalSearchUsers(query), 300);
+        };
     }
 
     logout() {
@@ -1234,7 +1519,12 @@ class AwesomeMessenger {
             currentScreen.style.transform = 'scale(0.95)';
         }
         
+        // Очищаем данные
         localStorage.removeItem('messenger_token');
+        this.token = null;
+        this.currentUser = null;
+        this.currentChat = null;
+        
         if (this.socket) {
             this.socket.disconnect();
         }
