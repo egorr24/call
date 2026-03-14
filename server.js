@@ -8,6 +8,18 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const fs = require('fs');
+const { Op } = require('sequelize');
+
+// Импорт моделей базы данных
+const { 
+    sequelize, 
+    User, 
+    Chat, 
+    ChatParticipant, 
+    Message, 
+    File, 
+    initDatabase 
+} = require('./models/database');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,7 +31,7 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'flux-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
@@ -65,12 +77,9 @@ const upload = multer({
 // Раздача загруженных файлов
 app.use('/uploads', express.static(uploadsDir));
 
-// Временное хранилище (в продакшене используй MongoDB)
-const users = new Map();
-const chats = new Map();
-const messages = new Map();
-const rooms = new Map();
+// Временное хранилище для онлайн пользователей и комнат видеозвонков
 const onlineUsers = new Map();
+const rooms = new Map();
 
 // API Routes
 
@@ -80,7 +89,15 @@ app.post('/api/register', async (req, res) => {
         const { username, email, password } = req.body;
         
         // Проверяем существование пользователя
-        const existingUser = Array.from(users.values()).find(u => u.email === email || u.username === username);
+        const existingUser = await User.findOne({
+            where: {
+                [Op.or]: [
+                    { email: email },
+                    { username: username }
+                ]
+            }
+        });
+        
         if (existingUser) {
             return res.status(400).json({ error: 'Пользователь уже существует' });
         }
@@ -89,33 +106,28 @@ app.post('/api/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         
         // Создаем пользователя
-        const userId = uuidv4();
-        const user = {
-            id: userId,
+        const user = await User.create({
             username,
             email,
             password: hashedPassword,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-            createdAt: new Date(),
-            lastSeen: new Date()
-        };
-        
-        users.set(userId, user);
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+        });
         
         // Создаем JWT токен
-        const token = jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jwt.sign({ userId: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
         
         res.json({
             success: true,
             token,
             user: {
-                id: userId,
-                username,
-                email,
+                id: user.id,
+                username: user.username,
+                email: user.email,
                 avatar: user.avatar
             }
         });
     } catch (error) {
+        console.error('Ошибка регистрации:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -126,7 +138,7 @@ app.post('/api/login', async (req, res) => {
         const { email, password } = req.body;
         
         // Находим пользователя
-        const user = Array.from(users.values()).find(u => u.email === email);
+        const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(400).json({ error: 'Неверные данные' });
         }
@@ -138,7 +150,7 @@ app.post('/api/login', async (req, res) => {
         }
         
         // Обновляем время последнего входа
-        user.lastSeen = new Date();
+        await user.update({ lastSeen: new Date() });
         
         // Создаем JWT токен
         const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
@@ -154,6 +166,7 @@ app.post('/api/login', async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Ошибка авторизации:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
@@ -562,6 +575,29 @@ setInterval(() => {
     });
 }, 30 * 60 * 1000);
 
-server.listen(PORT, () => {
-    console.log(`🚀 Мессенджер запущен на порту ${PORT}`);
-});
+// Запуск сервера с инициализацией базы данных
+async function startServer() {
+    try {
+        // Инициализируем базу данных
+        const dbConnected = await initDatabase();
+        
+        if (!dbConnected) {
+            console.error('❌ Не удалось подключиться к базе данных');
+            process.exit(1);
+        }
+        
+        // Запускаем сервер
+        server.listen(PORT, () => {
+            console.log(`🚀 Flux Messenger запущен на порту ${PORT}`);
+            console.log(`📊 База данных: PostgreSQL`);
+            console.log(`🌐 Режим: ${process.env.NODE_ENV || 'development'}`);
+        });
+        
+    } catch (error) {
+        console.error('❌ Ошибка запуска сервера:', error);
+        process.exit(1);
+    }
+}
+
+// Запускаем сервер
+startServer();

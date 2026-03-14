@@ -1,7 +1,7 @@
 {
-  "name": "awesome-messenger",
+  "name": "flux-messenger",
   "version": "1.0.0",
-  "description": "Крутой мессенджер с видеозвонками",
+  "description": "Flux - современный мессенджер нового поколения",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -15,7 +15,9 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "pg": "^8.11.3",
+    "sequelize": "^6.32.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
