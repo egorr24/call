@@ -3,6 +3,9 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,25 +17,266 @@ const io = socketIo(server, {
 });
 
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Хранилище комнат в памяти
+// Временное хранилище (в продакшене используй MongoDB)
+const users = new Map();
+const chats = new Map();
+const messages = new Map();
 const rooms = new Map();
+const onlineUsers = new Map();
 
-// Обслуживание статических файлов
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// API Routes
+
+// Регистрация
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        
+        // Проверяем существование пользователя
+        const existingUser = Array.from(users.values()).find(u => u.email === email || u.username === username);
+        if (existingUser) {
+            return res.status(400).json({ error: 'Пользователь уже существует' });
+        }
+        
+        // Хешируем пароль
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        // Создаем пользователя
+        const userId = uuidv4();
+        const user = {
+            id: userId,
+            username,
+            email,
+            password: hashedPassword,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+            createdAt: new Date(),
+            lastSeen: new Date()
+        };
+        
+        users.set(userId, user);
+        
+        // Создаем JWT токен
+        const token = jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: '7d' });
+        
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: userId,
+                username,
+                email,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
 });
+
+// Авторизация
+app.post('/api/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        // Находим пользователя
+        const user = Array.from(users.values()).find(u => u.email === email);
+        if (!user) {
+            return res.status(400).json({ error: 'Неверные данные' });
+        }
+        
+        // Проверяем пароль
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.status(400).json({ error: 'Неверные данные' });
+        }
+        
+        // Обновляем время последнего входа
+        user.lastSeen = new Date();
+        
+        // Создаем JWT токен
+        const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+        
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                avatar: user.avatar
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+});
+
+// Получить список пользователей
+app.get('/api/users', authenticateToken, (req, res) => {
+    const userList = Array.from(users.values()).map(user => ({
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        online: onlineUsers.has(user.id),
+        lastSeen: user.lastSeen
+    })).filter(user => user.id !== req.userId);
+    
+    res.json(userList);
+});
+
+// Получить чаты пользователя
+app.get('/api/chats', authenticateToken, (req, res) => {
+    const userChats = Array.from(chats.values()).filter(chat => 
+        chat.participants.includes(req.userId)
+    ).map(chat => {
+        const otherUserId = chat.participants.find(id => id !== req.userId);
+        const otherUser = users.get(otherUserId);
+        const chatMessages = messages.get(chat.id) || [];
+        const lastMessage = chatMessages[chatMessages.length - 1];
+        
+        return {
+            id: chat.id,
+            user: {
+                id: otherUser.id,
+                username: otherUser.username,
+                avatar: otherUser.avatar,
+                online: onlineUsers.has(otherUser.id)
+            },
+            lastMessage: lastMessage ? {
+                text: lastMessage.text,
+                timestamp: lastMessage.timestamp,
+                sender: lastMessage.sender
+            } : null,
+            unreadCount: chatMessages.filter(msg => 
+                msg.sender !== req.userId && !msg.read
+            ).length
+        };
+    });
+    
+    res.json(userChats);
+});
+
+// Получить сообщения чата
+app.get('/api/chats/:chatId/messages', authenticateToken, (req, res) => {
+    const { chatId } = req.params;
+    const chat = chats.get(chatId);
+    
+    if (!chat || !chat.participants.includes(req.userId)) {
+        return res.status(403).json({ error: 'Доступ запрещен' });
+    }
+    
+    const chatMessages = messages.get(chatId) || [];
+    res.json(chatMessages);
+});
+
+// Middleware для проверки токена
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Токен не предоставлен' });
+    }
+    
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Недействительный токен' });
+        }
+        req.userId = user.userId;
+        req.username = user.username;
+        next();
+    });
+}
 
 // WebSocket соединения
 io.on('connection', (socket) => {
     console.log('Пользователь подключился:', socket.id);
-
-    // Создание комнаты
+    
+    // Аутентификация через WebSocket
+    socket.on('authenticate', (token) => {
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            socket.userId = decoded.userId;
+            socket.username = decoded.username;
+            
+            // Добавляем в онлайн
+            onlineUsers.set(decoded.userId, socket.id);
+            
+            // Уведомляем всех о статусе онлайн
+            socket.broadcast.emit('user-online', decoded.userId);
+            
+            socket.emit('authenticated', { success: true });
+        } catch (error) {
+            socket.emit('auth-error', { error: 'Недействительный токен' });
+        }
+    });
+    
+    // Присоединение к чату
+    socket.on('join-chat', (chatId) => {
+        socket.join(chatId);
+    });
+    
+    // Отправка сообщения
+    socket.on('send-message', (data) => {
+        const { chatId, text, type = 'text' } = data;
+        
+        if (!socket.userId) return;
+        
+        const message = {
+            id: uuidv4(),
+            sender: socket.userId,
+            senderName: socket.username,
+            text,
+            type,
+            timestamp: new Date(),
+            read: false
+        };
+        
+        // Сохраняем сообщение
+        if (!messages.has(chatId)) {
+            messages.set(chatId, []);
+        }
+        messages.get(chatId).push(message);
+        
+        // Отправляем всем участникам чата
+        io.to(chatId).emit('new-message', { chatId, message });
+    });
+    
+    // Создание чата
+    socket.on('create-chat', (otherUserId) => {
+        if (!socket.userId) return;
+        
+        // Проверяем существование чата
+        const existingChat = Array.from(chats.values()).find(chat =>
+            chat.participants.includes(socket.userId) && chat.participants.includes(otherUserId)
+        );
+        
+        if (existingChat) {
+            socket.emit('chat-created', { chatId: existingChat.id });
+            return;
+        }
+        
+        // Создаем новый чат
+        const chatId = uuidv4();
+        const chat = {
+            id: chatId,
+            participants: [socket.userId, otherUserId],
+            createdAt: new Date()
+        };
+        
+        chats.set(chatId, chat);
+        messages.set(chatId, []);
+        
+        socket.emit('chat-created', { chatId });
+    });
+    
+    // Видеозвонки (из предыдущей версии)
     socket.on('create-room', (roomId) => {
         if (!rooms.has(roomId)) {
             rooms.set(roomId, {
@@ -46,10 +290,8 @@ io.on('connection', (socket) => {
         rooms.get(roomId).users.add(socket.id);
         
         socket.emit('room-created', { roomId, userId: socket.id });
-        console.log(`Комната ${roomId} создана пользователем ${socket.id}`);
     });
 
-    // Присоединение к комнате
     socket.on('join-room', (roomId) => {
         if (!rooms.has(roomId)) {
             socket.emit('error', 'Комната не найдена');
@@ -60,73 +302,66 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         room.users.add(socket.id);
 
-        // Уведомляем других пользователей в комнате
         socket.to(roomId).emit('user-joined', socket.id);
         
-        // Отправляем подтверждение присоединения
         socket.emit('room-joined', { 
             roomId, 
             userId: socket.id,
             users: Array.from(room.users)
         });
-
-        console.log(`Пользователь ${socket.id} присоединился к комнате ${roomId}`);
     });
 
-    // Обмен сигналами WebRTC
     socket.on('signal', (data) => {
         const { roomId, signal, to } = data;
         
         if (to) {
-            // Отправляем конкретному пользователю
             socket.to(to).emit('signal', {
                 signal,
                 from: socket.id
             });
         } else {
-            // Отправляем всем в комнате кроме отправителя
             socket.to(roomId).emit('signal', {
                 signal,
                 from: socket.id
             });
         }
     });
-
-    // Отключение пользователя
+    
+    // Отключение
     socket.on('disconnect', () => {
         console.log('Пользователь отключился:', socket.id);
         
-        // Удаляем пользователя из всех комнат
+        if (socket.userId) {
+            // Удаляем из онлайн
+            onlineUsers.delete(socket.userId);
+            
+            // Обновляем время последнего посещения
+            const user = users.get(socket.userId);
+            if (user) {
+                user.lastSeen = new Date();
+            }
+            
+            // Уведомляем всех о статусе оффлайн
+            socket.broadcast.emit('user-offline', socket.userId);
+        }
+        
+        // Удаляем из комнат видеозвонков
         rooms.forEach((room, roomId) => {
             if (room.users.has(socket.id)) {
                 room.users.delete(socket.id);
-                
-                // Уведомляем других пользователей
                 socket.to(roomId).emit('user-left', socket.id);
                 
-                // Удаляем пустые комнаты
                 if (room.users.size === 0) {
                     rooms.delete(roomId);
-                    console.log(`Комната ${roomId} удалена`);
                 }
             }
         });
     });
+});
 
-    // Выход из комнаты
-    socket.on('leave-room', (roomId) => {
-        if (rooms.has(roomId)) {
-            const room = rooms.get(roomId);
-            room.users.delete(socket.id);
-            
-            socket.to(roomId).emit('user-left', socket.id);
-            socket.leave(roomId);
-            
-            if (room.users.size === 0) {
-                rooms.delete(roomId);
-            }
-        }
-    });
+// Обслуживание статических файлов
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Очистка старых комнат каждые 30 минут
@@ -137,11 +372,10 @@ setInterval(() => {
     rooms.forEach((room, roomId) => {
         if (now - room.created > maxAge && room.users.size === 0) {
             rooms.delete(roomId);
-            console.log(`Удалена старая комната: ${roomId}`);
         }
     });
 }, 30 * 60 * 1000);
 
 server.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+    console.log(`🚀 Мессенджер запущен на порту ${PORT}`);
 });

@@ -3,56 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Видеозвонки - Railway Edition</title>
+    <title>Awesome Messenger</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📞 Видеозвонки</h1>
-            <p>Бесплатные видеозвонки с WebSocket</p>
-        </header>
-
-        <div id="home-screen" class="screen active">
-            <div class="card">
-                <h2>Создать комнату</h2>
-                <input type="text" id="room-name" placeholder="Название комнаты (необязательно)">
-                <button id="create-room" class="btn-primary">Создать комнату</button>
+    <!-- Экран авторизации -->
+    <div id="auth-screen" class="screen active">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1><i class="fas fa-comments"></i> Awesome Messenger</h1>
+                <p>Современный мессенджер с видеозвонками</p>
             </div>
             
-            <div class="card">
-                <h2>Присоединиться к комнате</h2>
-                <input type="text" id="join-room-id" placeholder="ID комнаты">
-                <button id="join-room" class="btn-secondary">Присоединиться</button>
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Вход</button>
+                <button class="tab-btn" data-tab="register">Регистрация</button>
+            </div>
+            
+            <!-- Форма входа -->
+            <div id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="login-email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                </div>
+                <button class="auth-btn" onclick="login()">
+                    <i class="fas fa-sign-in-alt"></i> Войти
+                </button>
+            </div>
+            
+            <!-- Форма регистрации -->
+            <div id="register-form" class="auth-form">
+                <div class="form-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="register-username" placeholder="Имя пользователя" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" id="register-email" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="register-password" placeholder="Пароль" required>
+                </div>
+                <button class="auth-btn" onclick="register()">
+                    <i class="fas fa-user-plus"></i> Зарегистрироваться
+                </button>
             </div>
         </div>
+    </div>
 
-        <div id="call-screen" class="screen">
-            <div class="video-container">
-                <video id="local-video" autoplay muted></video>
-                <video id="remote-video" autoplay></video>
+    <!-- Главный экран мессенджера -->
+    <div id="messenger-screen" class="screen">
+        <div class="messenger-container">
+            <!-- Боковая панель -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="user-info">
+                        <img id="user-avatar" src="" alt="Avatar" class="avatar">
+                        <div class="user-details">
+                            <span id="user-name"></span>
+                            <span class="status online">В сети</span>
+                        </div>
+                    </div>
+                    <div class="header-actions">
+                        <button class="icon-btn" onclick="showUsers()" title="Найти пользователей">
+                            <i class="fas fa-user-plus"></i>
+                        </button>
+                        <button class="icon-btn" onclick="logout()" title="Выйти">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Поиск чатов..." id="chat-search">
+                </div>
+                
+                <div class="chats-list" id="chats-list">
+                    <!-- Чаты будут загружены динамически -->
+                </div>
             </div>
-            
-            <div class="controls">
-                <button id="toggle-video" class="control-btn">📹</button>
-                <button id="toggle-audio" class="control-btn">🎤</button>
-                <button id="share-screen" class="control-btn">🖥️</button>
-                <button id="end-call" class="control-btn end-call">📞</button>
-            </div>
-            
-            <div class="room-info">
-                <p>ID комнаты: <span id="current-room-id"></span></p>
-                <button id="copy-link" class="btn-copy">Скопировать ссылку</button>
-                <div id="connection-status">Подключение...</div>
+
+            <!-- Область чата -->
+            <div class="chat-area">
+                <div id="no-chat-selected" class="no-chat">
+                    <i class="fas fa-comments"></i>
+                    <h3>Выберите чат для начала общения</h3>
+                    <p>Выберите существующий чат или найдите пользователя для создания нового</p>
+                </div>
+                
+                <div id="chat-container" class="chat-container" style="display: none;">
+                    <div class="chat-header">
+                        <div class="chat-user-info">
+                            <img id="chat-avatar" src="" alt="Avatar" class="avatar">
+                            <div class="chat-user-details">
+                                <span id="chat-username"></span>
+                                <span id="chat-status" class="status"></span>
+                            </div>
+                        </div>
+                        <div class="chat-actions">
+                            <button class="icon-btn" onclick="startVideoCall()" title="Видеозвонок">
+                                <i class="fas fa-video"></i>
+                            </button>
+                            <button class="icon-btn" onclick="startAudioCall()" title="Аудиозвонок">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="messages-container" id="messages-container">
+                        <!-- Сообщения будут загружены динамически -->
+                    </div>
+                    
+                    <div class="message-input-container">
+                        <div class="message-input">
+                            <button class="icon-btn" title="Прикрепить файл">
+                                <i class="fas fa-paperclip"></i>
+                            </button>
+                            <input type="text" id="message-input" placeholder="Введите сообщение..." maxlength="1000">
+                            <button class="icon-btn" onclick="sendMessage()" title="Отправить">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div id="waiting-screen" class="screen">
-            <div class="waiting-content">
-                <h2>Ожидание участников...</h2>
-                <p>ID комнаты: <span id="waiting-room-id"></span></p>
-                <button id="copy-waiting-link" class="btn-copy">Скопировать ссылку</button>
-                <div class="spinner"></div>
+    <!-- Модальное окно поиска пользователей -->
+    <div id="users-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-users"></i> Найти пользователей</h3>
+                <button class="close-btn" onclick="closeUsersModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Поиск пользователей..." id="user-search">
+                </div>
+                <div class="users-list" id="users-list">
+                    <!-- Пользователи будут загружены динамически -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Экран видеозвонка -->
+    <div id="video-call-screen" class="screen">
+        <div class="video-call-container">
+            <div class="video-area">
+                <video id="remote-video" autoplay class="remote-video"></video>
+                <video id="local-video" autoplay muted class="local-video"></video>
+            </div>
+            
+            <div class="call-controls">
+                <button id="toggle-video-btn" class="control-btn video-btn" onclick="toggleVideo()">
+                    <i class="fas fa-video"></i>
+                </button>
+                <button id="toggle-audio-btn" class="control-btn audio-btn" onclick="toggleAudio()">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button class="control-btn screen-btn" onclick="shareScreen()">
+                    <i class="fas fa-desktop"></i>
+                </button>
+                <button class="control-btn end-btn" onclick="endCall()">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+            </div>
+            
+            <div class="call-info">
+                <span id="call-status">Подключение...</span>
+                <span id="call-duration">00:00</span>
             </div>
         </div>
     </div>
