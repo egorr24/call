@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Видеозвонки - Railway Edition</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📞 Видеозвонки</h1>
+            <p>Бесплатные видеозвонки с WebSocket</p>
+        </header>
+
+        <div id="home-screen" class="screen active">
+            <div class="card">
+                <h2>Создать комнату</h2>
+                <input type="text" id="room-name" placeholder="Название комнаты (необязательно)">
+                <button id="create-room" class="btn-primary">Создать комнату</button>
+            </div>
+            
+            <div class="card">
+                <h2>Присоединиться к комнате</h2>
+                <input type="text" id="join-room-id" placeholder="ID комнаты">
+                <button id="join-room" class="btn-secondary">Присоединиться</button>
+            </div>
+        </div>
+
+        <div id="call-screen" class="screen">
+            <div class="video-container">
+                <video id="local-video" autoplay muted></video>
+                <video id="remote-video" autoplay></video>
+            </div>
+            
+            <div class="controls">
+                <button id="toggle-video" class="control-btn">📹</button>
+                <button id="toggle-audio" class="control-btn">🎤</button>
+                <button id="share-screen" class="control-btn">🖥️</button>
+                <button id="end-call" class="control-btn end-call">📞</button>
+            </div>
+            
+            <div class="room-info">
+                <p>ID комнаты: <span id="current-room-id"></span></p>
+                <button id="copy-link" class="btn-copy">Скопировать ссылку</button>
+                <div id="connection-status">Подключение...</div>
+            </div>
+        </div>
+
+        <div id="waiting-screen" class="screen">
+            <div class="waiting-content">
+                <h2>Ожидание участников...</h2>
+                <p>ID комнаты: <span id="waiting-room-id"></span></p>
+                <button id="copy-waiting-link" class="btn-copy">Скопировать ссылку</button>
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
