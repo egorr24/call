@@ -244,42 +244,83 @@ app.post('/api/login', async (req, res) => {
 app.put('/api/profile', authenticateToken, async (req, res) => {
     try {
         const { username, avatar, password } = req.body;
-        const user = users.get(req.userId);
         
-        if (!user) {
-            return res.status(404).json({ error: 'Пользователь не найден' });
-        }
-
-        // Проверяем уникальность username
-        if (username && username !== user.username) {
-            const existingUser = Array.from(users.values()).find(u => u.username === username && u.id !== req.userId);
-            if (existingUser) {
-                return res.status(400).json({ error: 'Имя пользователя уже занято' });
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'Пользователь не найден' });
             }
-            user.username = username;
-        }
 
-        // Обновляем аватар
-        if (avatar) {
-            user.avatar = avatar;
-        }
-
-        // Обновляем пароль
-        if (password) {
-            user.password = await bcrypt.hash(password, 10);
-        }
-
-        user.updatedAt = new Date();
-
-        res.json({
-            success: true,
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                avatar: user.avatar
+            // Проверяем уникальность username
+            if (username && username !== user.username) {
+                const existingUser = await User.findOne({
+                    where: {
+                        username: username,
+                        id: { [Op.ne]: req.userId }
+                    }
+                });
+                if (existingUser) {
+                    return res.status(400).json({ error: 'Имя пользователя уже занято' });
+                }
             }
-        });
+
+            // Обновляем данные
+            const updateData = {};
+            if (username) updateData.username = username;
+            if (avatar) updateData.avatar = avatar;
+            if (password) updateData.password = await bcrypt.hash(password, 10);
+
+            await user.update(updateData);
+
+            res.json({
+                success: true,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const user = users.get(req.userId);
+            
+            if (!user) {
+                return res.status(404).json({ error: 'Пользователь не найден' });
+            }
+
+            // Проверяем уникальность username
+            if (username && username !== user.username) {
+                const existingUser = Array.from(users.values()).find(u => u.username === username && u.id !== req.userId);
+                if (existingUser) {
+                    return res.status(400).json({ error: 'Имя пользователя уже занято' });
+                }
+                user.username = username;
+            }
+
+            // Обновляем аватар
+            if (avatar) {
+                user.avatar = avatar;
+            }
+
+            // Обновляем пароль
+            if (password) {
+                user.password = await bcrypt.hash(password, 10);
+            }
+
+            user.updatedAt = new Date();
+
+            res.json({
+                success: true,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        }
     } catch (error) {
         console.error('Ошибка обновления профиля:', error);
         res.status(500).json({ error: 'Ошибка сервера' });
@@ -287,79 +328,231 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
 });
 
 // Получить информацию о текущем пользователе
-app.get('/api/me', authenticateToken, (req, res) => {
-    const user = users.get(req.userId);
-    if (!user) {
-        return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-    
-    res.json({
-        success: true,
-        user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            avatar: user.avatar
+app.get('/api/me', authenticateToken, async (req, res) => {
+    try {
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'Пользователь не найден' });
+            }
+            
+            res.json({
+                success: true,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const user = users.get(req.userId);
+            if (!user) {
+                return res.status(404).json({ error: 'Пользователь не найден' });
+            }
+            
+            res.json({
+                success: true,
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
         }
-    });
+    } catch (error) {
+        console.error('Ошибка получения пользователя:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
 });
 
 // Получить список пользователей
-app.get('/api/users', authenticateToken, (req, res) => {
-    const userList = Array.from(users.values()).map(user => ({
-        id: user.id,
-        username: user.username,
-        avatar: user.avatar,
-        online: onlineUsers.has(user.id),
-        lastSeen: user.lastSeen
-    })).filter(user => user.id !== req.userId);
-    
-    res.json(userList);
+app.get('/api/users', authenticateToken, async (req, res) => {
+    try {
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const allUsers = await User.findAll({
+                where: {
+                    id: {
+                        [Op.ne]: req.userId // Исключаем текущего пользователя
+                    }
+                },
+                attributes: ['id', 'username', 'avatar', 'lastSeen'],
+                order: [['username', 'ASC']]
+            });
+            
+            const userList = allUsers.map(user => ({
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+                online: onlineUsers.has(user.id),
+                lastSeen: user.lastSeen
+            }));
+            
+            res.json(userList);
+        } else {
+            // Используем Map (fallback)
+            const userList = Array.from(users.values()).map(user => ({
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+                online: onlineUsers.has(user.id),
+                lastSeen: user.lastSeen
+            })).filter(user => user.id !== req.userId);
+            
+            res.json(userList);
+        }
+    } catch (error) {
+        console.error('Ошибка получения пользователей:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
 });
 
 // Получить чаты пользователя
-app.get('/api/chats', authenticateToken, (req, res) => {
-    const userChats = Array.from(chats.values()).filter(chat => 
-        chat.participants.includes(req.userId)
-    ).map(chat => {
-        const otherUserId = chat.participants.find(id => id !== req.userId);
-        const otherUser = users.get(otherUserId);
-        const chatMessages = messages.get(chat.id) || [];
-        const lastMessage = chatMessages[chatMessages.length - 1];
-        
-        return {
-            id: chat.id,
-            user: {
-                id: otherUser.id,
-                username: otherUser.username,
-                avatar: otherUser.avatar,
-                online: onlineUsers.has(otherUser.id)
-            },
-            lastMessage: lastMessage ? {
-                text: lastMessage.text,
-                timestamp: lastMessage.timestamp,
-                sender: lastMessage.sender
-            } : null,
-            unreadCount: chatMessages.filter(msg => 
-                msg.sender !== req.userId && !msg.read
-            ).length
-        };
-    });
-    
-    res.json(userChats);
+app.get('/api/chats', authenticateToken, async (req, res) => {
+    try {
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const userChats = await ChatParticipant.findAll({
+                where: { userId: req.userId },
+                include: [
+                    {
+                        model: Chat,
+                        include: [
+                            {
+                                model: ChatParticipant,
+                                where: { userId: { [Op.ne]: req.userId } },
+                                include: [{ model: User, attributes: ['id', 'username', 'avatar'] }]
+                            },
+                            {
+                                model: Message,
+                                limit: 1,
+                                order: [['createdAt', 'DESC']],
+                                required: false,
+                                include: [{ model: User, as: 'sender', attributes: ['username'] }]
+                            }
+                        ]
+                    }
+                ]
+            });
+            
+            const chatList = userChats.map(chatParticipant => {
+                const chat = chatParticipant.Chat;
+                const otherParticipant = chat.ChatParticipants[0];
+                const otherUser = otherParticipant.User;
+                const lastMessage = chat.Messages[0];
+                
+                return {
+                    id: chat.id,
+                    user: {
+                        id: otherUser.id,
+                        username: otherUser.username,
+                        avatar: otherUser.avatar,
+                        online: onlineUsers.has(otherUser.id)
+                    },
+                    lastMessage: lastMessage ? {
+                        text: lastMessage.text,
+                        timestamp: lastMessage.createdAt,
+                        sender: lastMessage.senderId
+                    } : null,
+                    unreadCount: 0 // TODO: Implement unread count
+                };
+            });
+            
+            res.json(chatList);
+        } else {
+            // Используем Map (fallback)
+            const userChats = Array.from(chats.values()).filter(chat => 
+                chat.participants.includes(req.userId)
+            ).map(chat => {
+                const otherUserId = chat.participants.find(id => id !== req.userId);
+                const otherUser = users.get(otherUserId);
+                const chatMessages = messages.get(chat.id) || [];
+                const lastMessage = chatMessages[chatMessages.length - 1];
+                
+                return {
+                    id: chat.id,
+                    user: {
+                        id: otherUser.id,
+                        username: otherUser.username,
+                        avatar: otherUser.avatar,
+                        online: onlineUsers.has(otherUser.id)
+                    },
+                    lastMessage: lastMessage ? {
+                        text: lastMessage.text,
+                        timestamp: lastMessage.timestamp,
+                        sender: lastMessage.sender
+                    } : null,
+                    unreadCount: chatMessages.filter(msg => 
+                        msg.sender !== req.userId && !msg.read
+                    ).length
+                };
+            });
+            
+            res.json(userChats);
+        }
+    } catch (error) {
+        console.error('Ошибка получения чатов:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
 });
 
 // Получить сообщения чата
-app.get('/api/chats/:chatId/messages', authenticateToken, (req, res) => {
-    const { chatId } = req.params;
-    const chat = chats.get(chatId);
-    
-    if (!chat || !chat.participants.includes(req.userId)) {
-        return res.status(403).json({ error: 'Доступ запрещен' });
+app.get('/api/chats/:chatId/messages', authenticateToken, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        
+        if (useDatabase) {
+            // Используем PostgreSQL
+            // Проверяем доступ к чату
+            const chatParticipant = await ChatParticipant.findOne({
+                where: {
+                    chatId: chatId,
+                    userId: req.userId
+                }
+            });
+            
+            if (!chatParticipant) {
+                return res.status(403).json({ error: 'Доступ запрещен' });
+            }
+            
+            // Получаем сообщения
+            const chatMessages = await Message.findAll({
+                where: { chatId: chatId },
+                include: [{ model: User, as: 'sender', attributes: ['username'] }],
+                order: [['createdAt', 'ASC']]
+            });
+            
+            const formattedMessages = chatMessages.map(msg => ({
+                id: msg.id,
+                sender: msg.senderId,
+                senderName: msg.sender.username,
+                text: msg.text,
+                type: msg.type,
+                fileData: msg.fileData,
+                timestamp: msg.createdAt,
+                read: msg.isRead
+            }));
+            
+            res.json(formattedMessages);
+        } else {
+            // Используем Map (fallback)
+            const chat = chats.get(chatId);
+            
+            if (!chat || !chat.participants.includes(req.userId)) {
+                return res.status(403).json({ error: 'Доступ запрещен' });
+            }
+            
+            const chatMessages = messages.get(chatId) || [];
+            res.json(chatMessages);
+        }
+    } catch (error) {
+        console.error('Ошибка получения сообщений:', error);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
-    
-    const chatMessages = messages.get(chatId) || [];
-    res.json(chatMessages);
 });
 
 // Загрузка файлов
@@ -438,75 +631,167 @@ io.on('connection', (socket) => {
     });
     
     // Отправка сообщения
-    socket.on('send-message', (data) => {
+    socket.on('send-message', async (data) => {
         const { chatId, text, type = 'text', fileData } = data;
         
         if (!socket.userId) return;
         
-        const message = {
-            id: uuidv4(),
-            sender: socket.userId,
-            senderName: socket.username,
-            text,
-            type,
-            fileData: fileData || null,
-            timestamp: new Date(),
-            read: false
-        };
-        
-        // Сохраняем сообщение
-        if (!messages.has(chatId)) {
-            messages.set(chatId, []);
+        try {
+            if (useDatabase) {
+                // Используем PostgreSQL
+                const message = await Message.create({
+                    chatId: chatId,
+                    senderId: socket.userId,
+                    text: text,
+                    type: type,
+                    fileData: fileData || null,
+                    isRead: false
+                });
+                
+                // Получаем данные отправителя
+                const sender = await User.findByPk(socket.userId);
+                
+                const messageData = {
+                    id: message.id,
+                    sender: message.senderId,
+                    senderName: sender.username,
+                    text: message.text,
+                    type: message.type,
+                    fileData: message.fileData,
+                    timestamp: message.createdAt,
+                    read: message.isRead
+                };
+                
+                // Отправляем всем участникам чата
+                io.to(chatId).emit('new-message', { chatId, message: messageData });
+            } else {
+                // Используем Map (fallback)
+                const message = {
+                    id: uuidv4(),
+                    sender: socket.userId,
+                    senderName: socket.username,
+                    text,
+                    type,
+                    fileData: fileData || null,
+                    timestamp: new Date(),
+                    read: false
+                };
+                
+                // Сохраняем сообщение
+                if (!messages.has(chatId)) {
+                    messages.set(chatId, []);
+                }
+                messages.get(chatId).push(message);
+                
+                // Отправляем всем участникам чата
+                io.to(chatId).emit('new-message', { chatId, message });
+            }
+        } catch (error) {
+            console.error('Ошибка отправки сообщения:', error);
+            socket.emit('message-error', { error: 'Ошибка отправки сообщения' });
         }
-        messages.get(chatId).push(message);
-        
-        // Отправляем всем участникам чата
-        io.to(chatId).emit('new-message', { chatId, message });
     });
     
     // Создание чата
-    socket.on('create-chat', (otherUserId) => {
+    socket.on('create-chat', async (otherUserId) => {
         if (!socket.userId) return;
         
-        // Проверяем существование чата
-        const existingChat = Array.from(chats.values()).find(chat =>
-            chat.participants.includes(socket.userId) && chat.participants.includes(otherUserId)
-        );
-        
-        if (existingChat) {
-            socket.emit('chat-created', { chatId: existingChat.id });
-            return;
-        }
-        
-        // Создаем новый чат
-        const chatId = uuidv4();
-        const chat = {
-            id: chatId,
-            participants: [socket.userId, otherUserId],
-            createdAt: new Date()
-        };
-        
-        chats.set(chatId, chat);
-        messages.set(chatId, []);
-        
-        // Уведомляем создателя
-        socket.emit('chat-created', { chatId });
-        
-        // Уведомляем другого пользователя о новом чате
-        const otherUserSocketId = onlineUsers.get(otherUserId);
-        if (otherUserSocketId) {
-            io.to(otherUserSocketId).emit('new-chat', { chatId });
+        try {
+            if (useDatabase) {
+                // Используем PostgreSQL
+                // Проверяем существование чата
+                const existingChat = await Chat.findOne({
+                    include: [
+                        {
+                            model: ChatParticipant,
+                            where: { userId: { [Op.in]: [socket.userId, otherUserId] } }
+                        }
+                    ],
+                    group: ['Chat.id'],
+                    having: sequelize.literal('COUNT(ChatParticipants.id) = 2')
+                });
+                
+                if (existingChat) {
+                    socket.emit('chat-created', { chatId: existingChat.id });
+                    return;
+                }
+                
+                // Создаем новый чат
+                const chat = await Chat.create({
+                    type: 'private'
+                });
+                
+                // Добавляем участников
+                await ChatParticipant.bulkCreate([
+                    { chatId: chat.id, userId: socket.userId },
+                    { chatId: chat.id, userId: otherUserId }
+                ]);
+                
+                // Уведомляем создателя
+                socket.emit('chat-created', { chatId: chat.id });
+                
+                // Уведомляем другого пользователя о новом чате
+                const otherUserSocketId = onlineUsers.get(otherUserId);
+                if (otherUserSocketId) {
+                    io.to(otherUserSocketId).emit('new-chat', { chatId: chat.id });
+                }
+            } else {
+                // Используем Map (fallback)
+                // Проверяем существование чата
+                const existingChat = Array.from(chats.values()).find(chat =>
+                    chat.participants.includes(socket.userId) && chat.participants.includes(otherUserId)
+                );
+                
+                if (existingChat) {
+                    socket.emit('chat-created', { chatId: existingChat.id });
+                    return;
+                }
+                
+                // Создаем новый чат
+                const chatId = uuidv4();
+                const chat = {
+                    id: chatId,
+                    participants: [socket.userId, otherUserId],
+                    createdAt: new Date()
+                };
+                
+                chats.set(chatId, chat);
+                messages.set(chatId, []);
+                
+                // Уведомляем создателя
+                socket.emit('chat-created', { chatId });
+                
+                // Уведомляем другого пользователя о новом чате
+                const otherUserSocketId = onlineUsers.get(otherUserId);
+                if (otherUserSocketId) {
+                    io.to(otherUserSocketId).emit('new-chat', { chatId });
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка создания чата:', error);
+            socket.emit('chat-error', { error: 'Ошибка создания чата' });
         }
     });
     
     // Видеозвонки - улучшенная синхронизация
-    socket.on('initiate-call', (data) => {
+    socket.on('initiate-call', async (data) => {
         const { targetUserId, callType, chatId } = data;
         const targetSocketId = onlineUsers.get(targetUserId);
         
         if (targetSocketId) {
             const callId = uuidv4();
-            const caller = users.get(socket.userId);
+            let caller;
+            
+            try {
+                if (useDatabase) {
+                    caller = await User.findByPk(socket.userId);
+                } else {
+                    caller = users.get(socket.userId);
+                }
+            } catch (error) {
+                console.error('Ошибка получения данных пользователя:', error);
+                caller = { username: 'Неизвестный' };
+            }
             
             io.to(targetSocketId).emit('incoming-call', {
                 callId,
@@ -596,7 +881,7 @@ io.on('connection', (socket) => {
     });
     
     // Отключение
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         console.log('Пользователь отключился:', socket.id);
         
         if (socket.userId) {
@@ -604,9 +889,20 @@ io.on('connection', (socket) => {
             onlineUsers.delete(socket.userId);
             
             // Обновляем время последнего посещения
-            const user = users.get(socket.userId);
-            if (user) {
-                user.lastSeen = new Date();
+            try {
+                if (useDatabase) {
+                    const user = await User.findByPk(socket.userId);
+                    if (user) {
+                        await user.update({ lastSeen: new Date() });
+                    }
+                } else {
+                    const user = users.get(socket.userId);
+                    if (user) {
+                        user.lastSeen = new Date();
+                    }
+                }
+            } catch (error) {
+                console.error('Ошибка обновления времени последнего посещения:', error);
             }
             
             // Уведомляем всех о статусе оффлайн

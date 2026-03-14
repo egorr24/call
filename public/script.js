@@ -113,12 +113,15 @@ class AwesomeMessenger {
                 this.currentUser = userData.user;
                 this.initMessenger();
             } else {
+                console.log('Токен недействителен, показываем форму входа');
                 localStorage.removeItem('messenger_token');
+                this.token = null;
                 this.showScreen('auth-screen');
             }
         } catch (error) {
             console.error('Ошибка проверки токена:', error);
             localStorage.removeItem('messenger_token');
+            this.token = null;
             this.showScreen('auth-screen');
         }
     }
@@ -204,7 +207,9 @@ class AwesomeMessenger {
 
         this.socket.on('connect', () => {
             console.log('Подключено к серверу');
-            this.socket.emit('authenticate', this.token);
+            if (this.token) {
+                this.socket.emit('authenticate', this.token);
+            }
         });
 
         this.socket.on('authenticated', () => {
@@ -214,6 +219,17 @@ class AwesomeMessenger {
         this.socket.on('auth-error', (data) => {
             console.error('Ошибка аутентификации:', data.error);
             this.logout();
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Отключено от сервера');
+        });
+
+        this.socket.on('reconnect', () => {
+            console.log('Переподключение к серверу');
+            if (this.token) {
+                this.socket.emit('authenticate', this.token);
+            }
         });
 
         this.socket.on('new-message', (data) => {
@@ -235,6 +251,17 @@ class AwesomeMessenger {
 
         this.socket.on('user-offline', (userId) => {
             this.updateUserStatus(userId, false);
+        });
+
+        // Обработка ошибок
+        this.socket.on('message-error', (data) => {
+            console.error('Ошибка отправки сообщения:', data.error);
+            alert('Ошибка отправки сообщения: ' + data.error);
+        });
+
+        this.socket.on('chat-error', (data) => {
+            console.error('Ошибка чата:', data.error);
+            alert('Ошибка чата: ' + data.error);
         });
 
         // Видеозвонки
@@ -273,6 +300,11 @@ class AwesomeMessenger {
         this.socket.on('call-ended', (data) => {
             this.handleCallEnded(data);
         });
+
+        this.socket.on('call-failed', (data) => {
+            console.error('Звонок не удался:', data.error);
+            alert('Звонок не удался: ' + data.error);
+        });
     }
 
     loadUserInfo() {
@@ -293,6 +325,9 @@ class AwesomeMessenger {
             if (response.ok) {
                 const chats = await response.json();
                 this.renderChats(chats);
+            } else {
+                const error = await response.json();
+                console.error('Ошибка загрузки чатов:', error);
             }
         } catch (error) {
             console.error('Ошибка загрузки чатов:', error);
@@ -380,6 +415,9 @@ class AwesomeMessenger {
             if (response.ok) {
                 const messages = await response.json();
                 this.renderMessages(messages);
+            } else {
+                const error = await response.json();
+                console.error('Ошибка загрузки сообщений:', error);
             }
         } catch (error) {
             console.error('Ошибка загрузки сообщений:', error);
@@ -649,9 +687,14 @@ class AwesomeMessenger {
                 const users = await response.json();
                 this.renderUsers(users);
                 document.getElementById('users-modal').classList.add('active');
+            } else {
+                const error = await response.json();
+                console.error('Ошибка загрузки пользователей:', error);
+                alert('Ошибка загрузки пользователей: ' + (error.error || 'Неизвестная ошибка'));
             }
         } catch (error) {
             console.error('Ошибка загрузки пользователей:', error);
+            alert('Ошибка загрузки пользователей. Проверьте подключение к интернету.');
         }
     }
 
