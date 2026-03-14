@@ -132,9 +132,12 @@ class AwesomeMessenger {
         const password = document.getElementById('register-password').value;
 
         if (!username || !email || !password) {
-            alert('Заполните все поля');
+            this.showError('Заполните все поля');
             return;
         }
+
+        const submitBtn = document.querySelector('#register-form button[type="submit"]');
+        this.setLoading(submitBtn, true);
 
         try {
             const response = await fetch('/api/register', {
@@ -151,13 +154,22 @@ class AwesomeMessenger {
                 this.token = data.token;
                 this.currentUser = data.user;
                 localStorage.setItem('messenger_token', this.token);
-                this.initMessenger();
+                
+                // Показываем успешную анимацию
+                submitBtn.classList.add('success-animation');
+                this.showNotification('Регистрация успешна!');
+                
+                setTimeout(() => {
+                    this.initMessenger();
+                }, 600);
             } else {
-                alert(data.error || 'Ошибка регистрации');
+                this.showError(data.error || 'Ошибка регистрации');
             }
         } catch (error) {
             console.error('Ошибка регистрации:', error);
-            alert('Ошибка сервера');
+            this.showError('Ошибка сервера');
+        } finally {
+            this.setLoading(submitBtn, false);
         }
     }
 
@@ -428,13 +440,20 @@ class AwesomeMessenger {
         const container = document.getElementById('messages-container');
         container.innerHTML = '';
 
-        messages.forEach(message => {
+        messages.forEach((message, index) => {
             const messageElement = this.createMessageElement(message);
+            // Добавляем задержку для анимации
+            messageElement.style.animationDelay = `${index * 0.05}s`;
             container.appendChild(messageElement);
         });
 
-        // Прокручиваем к последнему сообщению
-        container.scrollTop = container.scrollHeight;
+        // Плавная прокрутка к последнему сообщению
+        setTimeout(() => {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 100);
     }
 
     createMessageElement(message) {
@@ -662,17 +681,27 @@ class AwesomeMessenger {
 
     handleNewMessage(data) {
         if (data.chatId === this.currentChat) {
-            // Добавляем сообщение в текущий чат
+            // Добавляем сообщение в текущий чат с анимацией
             const messageElement = this.createMessageElement(data.message);
-            document.getElementById('messages-container').appendChild(messageElement);
-            
-            // Прокручиваем к новому сообщению
             const container = document.getElementById('messages-container');
-            container.scrollTop = container.scrollHeight;
+            container.appendChild(messageElement);
+            
+            // Плавная прокрутка к новому сообщению
+            setTimeout(() => {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         }
 
-        // Обновляем список чатов
+        // Обновляем список чатов с анимацией
         this.loadChats();
+        
+        // Показываем уведомление если чат не активен
+        if (data.chatId !== this.currentChat) {
+            this.showNotification(`Новое сообщение от ${data.message.senderName}`);
+        }
     }
 
     async showUsers() {
@@ -1153,19 +1182,127 @@ class AwesomeMessenger {
         }
     }
 
+    setLoading(button, isLoading) {
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Загрузка...';
+            button.classList.add('loading');
+        } else {
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalText || button.textContent;
+            button.classList.remove('loading');
+        }
+    }
+
+    showError(message) {
+        // Создаем уведомление об ошибке
+        const notification = document.createElement('div');
+        notification.className = 'notification error-animation';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.9);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Убираем уведомление через 4 секунды
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 4000);
+    }
+
     logout() {
+        // Анимация выхода
+        const currentScreen = document.querySelector('.screen.active');
+        if (currentScreen) {
+            currentScreen.style.opacity = '0';
+            currentScreen.style.transform = 'scale(0.95)';
+        }
+        
         localStorage.removeItem('messenger_token');
         if (this.socket) {
             this.socket.disconnect();
         }
-        this.showScreen('auth-screen');
+        
+        setTimeout(() => {
+            this.showScreen('auth-screen');
+            this.showNotification('Вы вышли из системы');
+        }, 300);
+    }
+
+    showNotification(message) {
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 255, 136, 0.9);
+            color: #000;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Убираем уведомление через 3 секунды
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
     }
 
     showScreen(screenId) {
-        document.querySelectorAll('.screen').forEach(screen => {
-            screen.classList.remove('active');
-        });
-        document.getElementById(screenId).classList.add('active');
+        // Добавляем плавный переход между экранами
+        const currentScreen = document.querySelector('.screen.active');
+        const newScreen = document.getElementById(screenId);
+        
+        if (currentScreen) {
+            currentScreen.style.opacity = '0';
+            currentScreen.style.transform = 'translateX(-20px)';
+            
+            setTimeout(() => {
+                currentScreen.classList.remove('active');
+                newScreen.classList.add('active');
+                
+                // Анимация появления нового экрана
+                setTimeout(() => {
+                    newScreen.style.opacity = '1';
+                    newScreen.style.transform = 'translateX(0)';
+                }, 50);
+            }, 200);
+        } else {
+            newScreen.classList.add('active');
+            setTimeout(() => {
+                newScreen.style.opacity = '1';
+                newScreen.style.transform = 'translateX(0)';
+            }, 50);
+        }
     }
 
     formatTime(date) {

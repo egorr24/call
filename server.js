@@ -415,43 +415,42 @@ app.get('/api/users', authenticateToken, async (req, res) => {
 app.get('/api/chats', authenticateToken, async (req, res) => {
     try {
         if (useDatabase) {
-            // Используем PostgreSQL
-            const userChats = await ChatParticipant.findAll({
+            // Используем PostgreSQL - упрощенный запрос
+            const userChatParticipants = await ChatParticipant.findAll({
                 where: { userId: req.userId },
-                include: [
-                    {
-                        model: Chat,
-                        include: [
-                            {
-                                model: ChatParticipant,
-                                where: { userId: { [Op.ne]: req.userId } },
-                                include: [{ model: User, attributes: ['id', 'username', 'avatar'] }]
-                            },
-                            {
-                                model: Message,
-                                limit: 1,
-                                order: [['createdAt', 'DESC']],
-                                required: false,
-                                include: [{ model: User, as: 'sender', attributes: ['username'] }]
-                            }
-                        ]
-                    }
-                ]
+                include: [{ model: Chat }]
             });
             
-            const chatList = userChats.map(chatParticipant => {
+            const chatList = [];
+            
+            for (const chatParticipant of userChatParticipants) {
                 const chat = chatParticipant.Chat;
-                const otherParticipant = chat.ChatParticipants[0];
-                const otherUser = otherParticipant.User;
-                const lastMessage = chat.Messages[0];
                 
-                return {
+                // Находим другого участника чата
+                const otherParticipant = await ChatParticipant.findOne({
+                    where: { 
+                        chatId: chat.id,
+                        userId: { [Op.ne]: req.userId }
+                    },
+                    include: [{ model: User, attributes: ['id', 'username', 'avatar'] }]
+                });
+                
+                if (!otherParticipant) continue;
+                
+                // Находим последнее сообщение
+                const lastMessage = await Message.findOne({
+                    where: { chatId: chat.id },
+                    order: [['createdAt', 'DESC']],
+                    include: [{ model: User, as: 'sender', attributes: ['username'] }]
+                });
+                
+                chatList.push({
                     id: chat.id,
                     user: {
-                        id: otherUser.id,
-                        username: otherUser.username,
-                        avatar: otherUser.avatar,
-                        online: onlineUsers.has(otherUser.id)
+                        id: otherParticipant.User.id,
+                        username: otherParticipant.User.username,
+                        avatar: otherParticipant.User.avatar,
+                        online: onlineUsers.has(otherParticipant.User.id)
                     },
                     lastMessage: lastMessage ? {
                         text: lastMessage.text,
@@ -459,8 +458,8 @@ app.get('/api/chats', authenticateToken, async (req, res) => {
                         sender: lastMessage.senderId
                     } : null,
                     unreadCount: 0 // TODO: Implement unread count
-                };
-            });
+                });
+            }
             
             res.json(chatList);
         } else {
@@ -698,18 +697,33 @@ io.on('connection', (socket) => {
         
         try {
             if (useDatabase) {
-                // Используем PostgreSQL
-                // Проверяем существование чата
-                const existingChat = await Chat.findOne({
-                    include: [
-                        {
-                            model: ChatParticipant,
-                            where: { userId: { [Op.in]: [socket.userId, otherUserId] } }
-                        }
-                    ],
-                    group: ['Chat.id'],
-                    having: sequelize.literal('COUNT(ChatParticipants.id) = 2')
+                // Используем PostgreSQL - упрощенный запрос
+                // Ищем существующий чат между двумя пользователями
+                const existingChatParticipants = await ChatParticipant.findAll({
+                    where: {
+                        userId: { [Op.in]: [socket.userId, otherUserId] }
+                    },
+                    include: [{ model: Chat }]
                 });
+                
+                // Группируем по chatId и ищем чат с обоими участниками
+                const chatCounts = {};
+                existingChatParticipants.forEach(participant => {
+                    const chatId = participant.chatId;
+                    if (!chatCounts[chatId]) {
+                        chatCounts[chatId] = { count: 0, chat: participant.Chat };
+                    }
+                    chatCounts[chatId].count++;
+                });
+                
+                // Ищем чат с двумя участниками
+                let existingChat = null;
+                for (const chatId in chatCounts) {
+                    if (chatCounts[chatId].count === 2) {
+                        existingChat = chatCounts[chatId].chat;
+                        break;
+                    }
+                }
                 
                 if (existingChat) {
                     socket.emit('chat-created', { chatId: existingChat.id });
