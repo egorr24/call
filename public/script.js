@@ -53,6 +53,57 @@ class MessengerApp {
             console.log('🔥 Найдена кнопка:', button.className, 'Title:', button.title);
         }
         
+        // Проверяем, находимся ли мы внутри модального окна
+        const modal = e.target.closest('.modal');
+        if (modal && modal.style.display === 'flex') {
+            console.log('🔥 Клик внутри модального окна:', modal.id);
+            
+            // Обработка кликов внутри модальных окон
+            if (target.classList.contains('close-btn')) {
+                console.log('🔥 Закрываем модальное окно');
+                modal.style.display = 'none';
+                return;
+            }
+            
+            if (target.classList.contains('status-option') || target.closest('.status-option')) {
+                const statusOption = target.closest('.status-option') || target;
+                const status = statusOption.dataset.status;
+                console.log('🔥 Выбираем статус:', status);
+                this.selectStatus(status);
+                return;
+            }
+            
+            if (target.classList.contains('set-status-btn') || target.textContent.includes('Установить')) {
+                console.log('🔥 Устанавливаем пользовательский статус');
+                this.setCustomStatus();
+                return;
+            }
+            
+            if (target.textContent.includes('Сохранить изменения')) {
+                console.log('🔥 Сохраняем настройки');
+                this.saveSettings();
+                return;
+            }
+            
+            if (target.textContent.includes('Написать')) {
+                const userId = target.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+                if (userId) {
+                    console.log('🔥 Создаем чат с пользователем:', userId);
+                    this.startChat(userId);
+                }
+                return;
+            }
+            
+            // Если клик по фону модального окна (не по содержимому)
+            if (target === modal) {
+                console.log('🔥 Клик по фону модального окна');
+                modal.style.display = 'none';
+                return;
+            }
+            
+            return; // Прекращаем обработку для кликов внутри модальных окон
+        }
+        
         // Auth buttons
         if (target.classList.contains('tab-btn')) {
             this.switchAuthTab(target.dataset.tab);
@@ -103,21 +154,6 @@ class MessengerApp {
         else if (target.classList.contains('chat-type-btn')) {
             this.selectChatType(target.dataset.type);
         }
-        // Status selection
-        else if (target.classList.contains('status-option')) {
-            console.log('🔥 Выбираем статус:', target.dataset.status);
-            this.selectStatus(target.dataset.status);
-        }
-        // Set status button
-        else if (target.classList.contains('set-status-btn')) {
-            console.log('🔥 Устанавливаем пользовательский статус');
-            this.setCustomStatus();
-        }
-        // Save settings button
-        else if (target.textContent.includes('Сохранить изменения')) {
-            console.log('🔥 Сохраняем настройки');
-            this.saveSettings();
-        }
         // Game selection
         else if (target.classList.contains('game-card')) {
             this.startGame(target.dataset.game);
@@ -129,21 +165,6 @@ class MessengerApp {
         // Drawing tools
         else if (target.classList.contains('draw-tool')) {
             this.selectDrawTool(target.dataset.tool);
-        }
-        // Close buttons
-        else if (target.classList.contains('close-btn')) {
-            console.log('🔥 Закрываем модальное окно');
-            const modal = target.closest('.modal');
-            if (modal) {
-                modal.style.display = 'none';
-                console.log('🔥 Модальное окно закрыто');
-            }
-        }
-        // Close modal by clicking on background
-        else if (target.classList.contains('modal')) {
-            console.log('🔥 Клик по фону модального окна');
-            target.style.display = 'none';
-            console.log('🔥 Модальное окно закрыто');
         }
     }
     handleEnterKey(e) {
@@ -688,6 +709,17 @@ class MessengerApp {
                 visibility: visible !important;
                 opacity: 1 !important;
             `;
+            
+            // Делаем содержимое модального окна кликабельным
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.cssText = `
+                    pointer-events: auto !important;
+                    position: relative !important;
+                    z-index: 100000 !important;
+                `;
+            }
+            
             console.log('🔥 Модальное окно статуса открыто');
         } else {
             console.warn('🔥 Модальное окно статуса не найдено');
