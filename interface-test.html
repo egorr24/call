@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interface Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; }
+        .close-btn { float: right; cursor: pointer; font-size: 20px; }
+        .setting-item { padding: 10px; border: 1px solid #ccc; margin: 5px 0; cursor: pointer; }
+        .setting-item:hover { background: #f0f0f0; }
+        .panel { display: none; background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Тест интерфейса мессенджера</h1>
+    
+    <div>
+        <button title="Настройки">🔧 Настройки</button>
+        <button title="Найти пользователей">👥 Найти пользователей</button>
+        <button id="sticker-btn">😀 Стикеры</button>
+        <button id="poll-btn">📊 Опрос</button>
+    </div>
+    
+    <!-- Модальное окно настроек -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Настройки</h2>
+            
+            <div class="setting-item" data-setting="profile">
+                <div>👤 Редактировать профиль</div>
+            </div>
+            
+            <div class="setting-item" data-setting="themes">
+                <div>🎨 Темы оформления</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно поиска -->
+    <div id="users-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Найти пользователей</h2>
+            <p>Здесь будет поиск пользователей...</p>
+        </div>
+    </div>
+    
+    <!-- Панель стикеров -->
+    <div id="sticker-panel" class="panel">
+        <h3>Панель стикеров</h3>
+        <p>Здесь будут стикеры и GIF...</p>
+    </div>
+    
+    <!-- Панель опросов -->
+    <div id="poll-panel" class="panel">
+        <h3>Создание опроса</h3>
+        <p>Здесь будет форма создания опроса...</p>
+    </div>
+    
+    <div id="log" style="background: #f0f0f0; padding: 10px; margin: 20px 0; height: 200px; overflow-y: auto;">
+        <div><strong>Лог событий:</strong></div>
+    </div>
+    
+    <script>
+        // Упрощенная версия для тестирования
+        class TestApp {
+            constructor() {
+                this.currentChat = { type: 'private' }; // Для тестирования опросов
+                this.setupEventListeners();
+                this.log('Тестовое приложение запущено');
+            }
+            
+            log(message) {
+                const logDiv = document.getElementById('log');
+                const div = document.createElement('div');
+                div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+                logDiv.appendChild(div);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('click', (e) => {
+                    this.handleGlobalClick(e);
+                    
+                    if (e.target.classList.contains('modal')) {
+                        e.target.style.display = 'none';
+                        this.log('Модальное окно закрыто кликом по фону');
+                    }
+                });
+            }
+            
+            handleGlobalClick(e) {
+                const target = e.target.closest('button') || e.target.closest('.setting-item') || e.target;
+                
+                if (target.title === 'Настройки') {
+                    this.showSettings();
+                } else if (target.title === 'Найти пользователей') {
+                    this.showUserSearch();
+                } else if (target.id === 'sticker-btn') {
+                    this.toggleStickerPanel();
+                } else if (target.id === 'poll-btn') {
+                    this.showPollModal();
+                } else if (target.classList.contains('close-btn')) {
+                    this.closeModal(target);
+                } else if (target.closest('.setting-item')) {
+                    const settingItem = target.closest('.setting-item');
+                    const settingType = settingItem.dataset.setting;
+                    this.log('Клик по настройке: ' + settingType);
+                }
+            }
+            
+            showSettings() {
+                const modal = document.getElementById('settings-modal');
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                this.log('✅ Настройки открыты');
+            }
+            
+            showUserSearch() {
+                const modal = document.getElementById('users-modal');
+                modal.style.display = 'flex';
+                modal.classList.add('active');
+                this.log('✅ Поиск пользователей открыт');
+            }
+            
+            toggleStickerPanel() {
+                const panel = document.getElementById('sticker-panel');
+                const isVisible = panel.style.display !== 'none';
+                panel.style.display = isVisible ? 'none' : 'block';
+                this.log('✅ Панель стикеров ' + (isVisible ? 'закрыта' : 'открыта'));
+            }
+            
+            showPollModal() {
+                if (this.currentChat.type === 'group') {
+                    const panel = document.getElementById('poll-panel');
+                    panel.style.display = 'block';
+                    this.log('✅ Панель опросов открыта');
+                } else {
+                    this.log('❌ Опросы только для групп');
+                }
+            }
+            
+            closeModal(target) {
+                const modal = target.closest('.modal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                    this.log('✅ Модальное окно закрыто');
+                }
+            }
+        }
+        
+        new TestApp();
+    </script>
+</body>
+</html>

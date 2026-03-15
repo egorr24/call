@@ -23,6 +23,13 @@ class MessengerApp {
         document.addEventListener('click', (e) => {
             console.log('🔥 Клик зарегистрирован на:', e.target.tagName, e.target.className);
             this.handleGlobalClick(e);
+            
+            // Закрытие модальных окон при клике по фону
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+                e.target.classList.remove('active');
+                console.log('🔥 Модальное окно закрыто кликом по фону');
+            }
         });
 
         document.addEventListener('keypress', (e) => {
@@ -111,6 +118,24 @@ class MessengerApp {
             else if (target.title === 'Статус') {
                 console.log('🔥 Клик по status');
                 this.toggleStatus();
+            }
+            
+            // Close buttons for modals
+            else if (target.classList.contains('close-btn')) {
+                console.log('🔥 Клик по close-btn');
+                this.closeModal(target);
+            }
+            else if (target.classList.contains('back-btn')) {
+                console.log('🔥 Клик по back-btn');
+                this.handleBackButton(target);
+            }
+            
+            // Settings items
+            else if (target.closest('.setting-item')) {
+                const settingItem = target.closest('.setting-item');
+                const settingType = settingItem.dataset.setting;
+                console.log('🔥 Клик по setting-item:', settingType);
+                this.openSettingSubscreen(settingType);
             }
         }
 
@@ -558,13 +583,29 @@ class MessengerApp {
 
     toggleStickerPanel() {
         console.log('🔥 Переключение панели стикеров');
-        this.showNotification('Панель стикеров и GIF', 'info');
+        const stickerPanel = document.getElementById('sticker-panel');
+        if (stickerPanel) {
+            const isVisible = stickerPanel.style.display !== 'none';
+            stickerPanel.style.display = isVisible ? 'none' : 'block';
+            
+            if (!isVisible) {
+                this.showNotification('Панель стикеров открыта', 'info');
+            }
+        } else {
+            this.showNotification('Панель стикеров не найдена', 'error');
+        }
     }
 
     showPollModal() {
         console.log('🔥 Показываем модал опроса');
         if (this.currentChat && this.currentChat.type === 'group') {
-            this.showNotification('Создание опроса для группы', 'info');
+            const pollPanel = document.getElementById('poll-panel');
+            if (pollPanel) {
+                pollPanel.style.display = 'block';
+                this.showNotification('Создание опроса для группы', 'info');
+            } else {
+                this.showNotification('Панель опросов не найдена', 'error');
+            }
         } else {
             this.showNotification('Опросы доступны только в групповых чатах', 'error');
         }
@@ -608,17 +649,105 @@ class MessengerApp {
 
     showSettings() {
         console.log('🔥 Показываем настройки');
-        this.showNotification('Настройки приложения', 'info');
+        const settingsModal = document.getElementById('settings-modal');
+        if (settingsModal) {
+            settingsModal.style.display = 'flex';
+            settingsModal.classList.add('active');
+            this.updateSettingsProfile();
+        } else {
+            this.showNotification('Модальное окно настроек не найдено', 'error');
+        }
     }
 
     showUserSearch() {
         console.log('🔥 Показываем поиск пользователей');
-        this.showNotification('Поиск новых пользователей', 'info');
+        const usersModal = document.getElementById('users-modal');
+        if (usersModal) {
+            usersModal.style.display = 'flex';
+            usersModal.classList.add('active');
+        } else {
+            this.showNotification('Модальное окно поиска не найдено', 'error');
+        }
     }
 
     toggleStatus() {
         console.log('🔥 Переключение статуса');
         this.showNotification('Изменение статуса', 'info');
+    }
+    
+    updateSettingsProfile() {
+        if (!this.currentUser) return;
+        
+        const settingsAvatar = document.getElementById('settings-avatar');
+        const settingsUsername = document.getElementById('settings-username');
+        const settingsEmail = document.getElementById('settings-email');
+        
+        if (settingsAvatar) {
+            settingsAvatar.src = this.currentUser.avatar || '/default-avatar.png';
+        }
+        
+        if (settingsUsername) {
+            settingsUsername.value = this.currentUser.username || '';
+        }
+        
+        if (settingsEmail) {
+            settingsEmail.value = this.currentUser.email || '';
+        }
+    }
+    
+    closeModal(target) {
+        const modal = target.closest('.modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('active');
+            console.log('🔥 Модальное окно закрыто');
+        }
+    }
+    
+    handleBackButton(target) {
+        // Если это кнопка назад в настройках
+        const settingsSubscreen = target.closest('.settings-subscreen');
+        if (settingsSubscreen) {
+            settingsSubscreen.style.display = 'none';
+            console.log('🔥 Подэкран настроек закрыт');
+            return;
+        }
+        
+        // Если это основная кнопка назад в настройках
+        const settingsModal = target.closest('#settings-modal');
+        if (settingsModal) {
+            settingsModal.style.display = 'none';
+            settingsModal.classList.remove('active');
+            console.log('🔥 Настройки закрыты');
+            return;
+        }
+    }
+    
+    openSettingSubscreen(settingType) {
+        console.log('🔥 Открываем подэкран настроек:', settingType);
+        
+        // Скрываем все подэкраны
+        const subscreens = document.querySelectorAll('.settings-subscreen');
+        subscreens.forEach(screen => screen.style.display = 'none');
+        
+        // Показываем нужный подэкран
+        let targetScreen = null;
+        switch(settingType) {
+            case 'profile':
+                targetScreen = document.getElementById('profile-settings');
+                break;
+            case 'themes':
+                targetScreen = document.getElementById('themes-settings');
+                break;
+            default:
+                this.showNotification(`Настройка "${settingType}" пока не реализована`, 'info');
+                return;
+        }
+        
+        if (targetScreen) {
+            targetScreen.style.display = 'block';
+            console.log('🔥 Подэкран открыт:', settingType);
+        }
     }
 }
 
