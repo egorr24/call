@@ -97,14 +97,19 @@ class MessengerApp {
             // Кнопка "Написать" в списке пользователей
             if (target.textContent.includes('Написать') || target.classList.contains('btn-primary')) {
                 console.log('🔥 Кнопка "Написать" нажата');
+                console.log('🔥 Target element:', target);
+                console.log('🔥 Target dataset:', target.dataset);
+                
                 // Ищем ID пользователя в data атрибуте кнопки
                 let userId = target.dataset.userId;
                 
                 if (!userId) {
                     // Ищем в родительском элементе
                     const userItem = target.closest('.user-item');
+                    console.log('🔥 User item:', userItem);
                     if (userItem) {
                         userId = userItem.dataset.userId;
+                        console.log('🔥 User ID from parent:', userId);
                     }
                 }
                 
@@ -113,6 +118,7 @@ class MessengerApp {
                     this.startChat(userId);
                 } else {
                     console.warn('🔥 ID пользователя не найден');
+                    console.log('🔥 Available data attributes:', Object.keys(target.dataset));
                     this.showNotification('Ошибка: ID пользователя не найден', 'error');
                 }
                 return;
@@ -432,11 +438,27 @@ class MessengerApp {
         this.socket.on('connect', () => {
             console.log('🔥 Socket.IO подключен');
             if (this.currentUser) {
+                console.log('🔥 Аутентифицируем пользователя через Socket.IO');
                 this.socket.emit('user-online', this.currentUser.id);
+                
+                // Аутентификация через WebSocket
+                const token = localStorage.getItem('token');
+                if (token) {
+                    this.socket.emit('authenticate', token);
+                }
             }
         });
 
+        this.socket.on('authenticated', (data) => {
+            console.log('🔥 Socket.IO аутентификация успешна:', data);
+        });
+
+        this.socket.on('auth-error', (data) => {
+            console.error('🔥 Ошибка Socket.IO аутентификации:', data);
+        });
+
         this.socket.on('new-message', (message) => {
+            console.log('🔥 Получено новое сообщение через Socket.IO:', message);
             this.handleNewMessage(message);
         });
 
@@ -608,13 +630,19 @@ class MessengerApp {
         // Load messages
         this.loadMessages(chat.id);
         
-        // Show chat area
-        const chatArea = document.querySelector('.chat-area');
-        if (chatArea) {
-            chatArea.style.display = 'flex';
-            console.log('🔥 Область чата показана');
+        // Show chat area - исправляем отображение
+        const noChatSelected = document.getElementById('no-chat-selected');
+        const chatContainer = document.getElementById('chat-container');
+        
+        if (noChatSelected) {
+            noChatSelected.style.display = 'none';
+        }
+        
+        if (chatContainer) {
+            chatContainer.style.display = 'flex';
+            console.log('🔥 Контейнер чата показан');
         } else {
-            console.warn('🔥 Элемент chat-area не найден');
+            console.warn('🔥 Элемент chat-container не найден');
         }
     }
 
@@ -641,7 +669,13 @@ class MessengerApp {
         }
     }
     renderMessages(messages) {
-        const messagesContainer = document.getElementById('messages');
+        console.log('🔥 Отображаем сообщения:', messages.length);
+        const messagesContainer = document.getElementById('messages-container');
+        if (!messagesContainer) {
+            console.warn('🔥 Элемент messages-container не найден');
+            return;
+        }
+        
         messagesContainer.innerHTML = '';
         
         messages.forEach(message => {
@@ -718,9 +752,19 @@ class MessengerApp {
 
     async sendMessage() {
         const input = document.getElementById('message-input');
+        if (!input) {
+            console.error('🔥 Элемент message-input не найден');
+            return;
+        }
+        
         const text = input.value.trim();
         
-        if (!text || !this.currentChat) return;
+        if (!text || !this.currentChat) {
+            console.log('🔥 Нет текста или чата для отправки');
+            return;
+        }
+        
+        console.log('🔥 Отправляем сообщение:', text, 'в чат:', this.currentChat.id);
         
         try {
             const response = await fetch('/api/messages', {
@@ -735,23 +779,31 @@ class MessengerApp {
                 })
             });
             
+            console.log('🔥 Ответ отправки сообщения:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные ответа:', data);
             
             if (data.success) {
                 input.value = '';
+                console.log('🔥 Сообщение отправлено успешно');
                 // Message will be added via socket
             } else {
-                this.showNotification('Ошибка отправки сообщения', 'error');
+                console.error('🔥 Ошибка отправки:', data.message);
+                this.showNotification('Ошибка отправки сообщения: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при отправке сообщения:', error);
             this.showNotification('Ошибка отправки сообщения', 'error');
         }
     }
     handleNewMessage(message) {
         if (this.currentChat && message.chatId === this.currentChat.id) {
             const messageElement = this.createMessageElement(message);
-            document.getElementById('messages').appendChild(messageElement);
-            this.scrollToBottom();
+            const messagesContainer = document.getElementById('messages-container');
+            if (messagesContainer) {
+                messagesContainer.appendChild(messageElement);
+                this.scrollToBottom();
+            }
         }
         
         // Update chat list
@@ -963,8 +1015,10 @@ class MessengerApp {
     }
 
     scrollToBottom() {
-        const messagesContainer = document.getElementById('messages');
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        const messagesContainer = document.getElementById('messages-container');
+        if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     }
 
     updateUserStatus(userId, status) {
@@ -1215,7 +1269,10 @@ class MessengerApp {
 
     selectTheme(theme) {
         document.querySelectorAll('.theme-card').forEach(card => card.classList.remove('active'));
-        event.target.closest('.theme-card').classList.add('active');
+        const themeCard = document.querySelector(`[data-theme="${theme}"]`);
+        if (themeCard) {
+            themeCard.classList.add('active');
+        }
         
         // Apply theme
         document.body.className = `theme-${theme}`;
@@ -1224,14 +1281,20 @@ class MessengerApp {
 
     selectChatType(type) {
         document.querySelectorAll('.chat-type-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.closest('.chat-type-btn').classList.add('active');
+        const chatTypeBtn = document.querySelector(`[data-type="${type}"]`);
+        if (chatTypeBtn) {
+            chatTypeBtn.classList.add('active');
+        }
         
         // Show/hide group options
+        const groupCreation = document.getElementById('group-creation');
         const groupActions = document.getElementById('group-actions');
         if (type === 'group') {
-            groupActions.style.display = 'block';
+            if (groupCreation) groupCreation.style.display = 'block';
+            if (groupActions) groupActions.style.display = 'block';
         } else {
-            groupActions.style.display = 'none';
+            if (groupCreation) groupCreation.style.display = 'none';
+            if (groupActions) groupActions.style.display = 'none';
         }
     }
 
@@ -1282,7 +1345,10 @@ class MessengerApp {
 
     selectDrawTool(tool) {
         document.querySelectorAll('.draw-tool').forEach(btn => btn.classList.remove('active'));
-        event.target.closest('.draw-tool').classList.add('active');
+        const drawTool = document.querySelector(`[data-tool="${tool}"]`);
+        if (drawTool) {
+            drawTool.classList.add('active');
+        }
         
         // Update drawing tool
         this.currentDrawTool = tool;

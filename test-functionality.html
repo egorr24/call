@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест функциональности мессенджера</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Тест функциональности Flux Messenger</h1>
+    
+    <div class="test-section">
+        <h3>1. Тест регистрации</h3>
+        <input type="text" id="reg-username" placeholder="Имя пользователя">
+        <input type="email" id="reg-email" placeholder="Email">
+        <input type="password" id="reg-password" placeholder="Пароль">
+        <button onclick="testRegister()">Зарегистрироваться</button>
+        <div id="reg-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. Тест входа</h3>
+        <input type="email" id="login-email" placeholder="Email">
+        <input type="password" id="login-password" placeholder="Пароль">
+        <button onclick="testLogin()">Войти</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Тест API endpoints</h3>
+        <button onclick="testUsers()">Получить пользователей</button>
+        <button onclick="testChats()">Получить чаты</button>
+        <div id="api-result"></div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        
+        async function testRegister() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                const data = await response.json();
+                const result = document.getElementById('reg-result');
+                
+                if (data.success) {
+                    result.innerHTML = '<span class="success">✅ Регистрация успешна!</span>';
+                } else {
+                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.error || data.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('reg-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                const result = document.getElementById('login-result');
+                
+                if (data.success) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                    result.innerHTML = '<span class="success">✅ Вход успешен!</span>';
+                } else {
+                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.error || data.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('login-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            }
+        }
+        
+        async function testUsers() {
+            if (!token) {
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/users', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                const result = document.getElementById('api-result');
+                
+                if (data.success) {
+                    result.innerHTML = `<span class="success">✅ Пользователи загружены: ${data.users.length}</span>`;
+                } else {
+                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('api-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            }
+        }
+        
+        async function testChats() {
+            if (!token) {
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                const result = document.getElementById('api-result');
+                
+                if (data.success) {
+                    result.innerHTML = `<span class="success">✅ Чаты загружены: ${data.chats.length}</span>`;
+                } else {
+                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('api-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
