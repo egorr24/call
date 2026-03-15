@@ -664,6 +664,15 @@ class MessengerApp {
         console.log('🔥 Модальное окно статуса:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.zIndex = '10000';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
             console.log('🔥 Модальное окно статуса открыто');
         } else {
             console.warn('🔥 Модальное окно статуса не найдено');
