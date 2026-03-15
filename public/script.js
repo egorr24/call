@@ -312,6 +312,54 @@ class MessengerApp {
         
         this.updateUserProfile();
         this.loadChats();
+        this.setupChatSearch();
+    }
+    
+    setupChatSearch() {
+        const chatSearchInput = document.getElementById('chat-search');
+        if (chatSearchInput) {
+            chatSearchInput.removeEventListener('input', this.handleChatSearch);
+            
+            this.handleChatSearch = this.debounce((e) => {
+                const query = e.target.value.trim().toLowerCase();
+                this.filterChats(query);
+            }, 300);
+            
+            chatSearchInput.addEventListener('input', this.handleChatSearch);
+        }
+    }
+    
+    filterChats(query) {
+        const chatItems = document.querySelectorAll('.chat-item');
+        
+        chatItems.forEach(item => {
+            const chatName = item.querySelector('.chat-name')?.textContent.toLowerCase() || '';
+            const lastMessage = item.querySelector('.chat-last-message')?.textContent.toLowerCase() || '';
+            
+            const matches = chatName.includes(query) || lastMessage.includes(query);
+            item.style.display = matches ? 'flex' : 'none';
+        });
+        
+        // Показываем сообщение если ничего не найдено
+        const visibleChats = document.querySelectorAll('.chat-item[style*="flex"]');
+        const chatsList = document.getElementById('chats-list');
+        
+        if (visibleChats.length === 0 && query) {
+            if (!document.querySelector('.no-search-results')) {
+                const noResults = document.createElement('div');
+                noResults.className = 'no-search-results';
+                noResults.innerHTML = `
+                    <div class="empty-icon">🔍</div>
+                    <p>Чаты не найдены</p>
+                `;
+                chatsList.appendChild(noResults);
+            }
+        } else {
+            const noResults = document.querySelector('.no-search-results');
+            if (noResults) {
+                noResults.remove();
+            }
+        }
     }
 
     connectSocket() {
@@ -483,13 +531,147 @@ class MessengerApp {
     }
 
     selectChat(chat) {
-        // Placeholder for chat selection
-        console.log('🔥 Выбран чат:', chat.name);
+        console.log('🔥 Выбираем чат:', chat.name);
+        this.currentChat = chat;
+        
+        // Обновляем активный чат в списке
+        const chatItems = document.querySelectorAll('.chat-item');
+        chatItems.forEach(item => item.classList.remove('active'));
+        
+        const selectedItem = document.querySelector(`[data-chat-id="${chat.id}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+        
+        // Показываем область чата
+        this.showChatArea(chat);
+        
+        // Загружаем сообщения чата
+        this.loadChatMessages(chat.id);
+        
+        this.showNotification(`Открыт чат с ${chat.name}`, 'success');
+    }
+    
+    showChatArea(chat) {
+        const chatHeader = document.querySelector('.chat-header');
+        const chatName = document.getElementById('chat-name');
+        const chatStatus = document.getElementById('chat-status');
+        const chatAvatar = document.querySelector('.chat-header .chat-avatar img');
+        const messagesArea = document.getElementById('messages-area');
+        
+        if (chatName) chatName.textContent = chat.name;
+        if (chatStatus) chatStatus.textContent = chat.isOnline ? 'в сети' : 'не в сети';
+        if (chatAvatar) chatAvatar.src = chat.avatar || '/default-avatar.png';
+        
+        // Показываем область сообщений
+        if (messagesArea) {
+            messagesArea.innerHTML = '<div class="loading-messages">Загрузка сообщений...</div>';
+        }
+        
+        // Показываем панель ввода
+        const messageInputContainer = document.querySelector('.message-input-container');
+        if (messageInputContainer) {
+            messageInputContainer.style.display = 'flex';
+        }
+    }
+    
+    async loadChatMessages(chatId) {
+        try {
+            const response = await fetch(`/api/messages/${chatId}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.renderMessages(data.messages || []);
+            } else {
+                this.showNotification('Ошибка загрузки сообщений: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при загрузке сообщений:', error);
+            this.showNotification('Ошибка загрузки сообщений', 'error');
+        }
+    }
+    
+    renderMessages(messages) {
+        const messagesArea = document.getElementById('messages-area');
+        if (!messagesArea) return;
+        
+        if (messages.length === 0) {
+            messagesArea.innerHTML = `
+                <div class="empty-messages">
+                    <div class="empty-icon">💬</div>
+                    <p>Нет сообщений. Начните общение!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        messagesArea.innerHTML = '';
+        
+        messages.forEach(message => {
+            const messageEl = this.createMessageElement(message);
+            messagesArea.appendChild(messageEl);
+        });
+        
+        // Прокручиваем к последнему сообщению
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    createMessageElement(message) {
+        const messageDiv = document.createElement('div');
+        const isOwn = message.senderId === this.currentUser.id;
+        
+        messageDiv.className = `message ${isOwn ? 'own' : 'other'}`;
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                ${!isOwn ? `<div class="message-sender">${this.escapeHtml(message.senderName || 'Пользователь')}</div>` : ''}
+                <div class="message-text">${this.escapeHtml(message.text)}</div>
+                <div class="message-time">${this.formatTime(message.createdAt)}</div>
+            </div>
+        `;
+        
+        return messageDiv;
     }
 
     handleNewMessage(message) {
-        // Placeholder for new message handling
         console.log('🔥 Новое сообщение:', message);
+        
+        // Если сообщение для текущего чата, добавляем его
+        if (this.currentChat && message.chatId === this.currentChat.id) {
+            this.addMessageToChat(message);
+        }
+        
+        // Обновляем список чатов (последнее сообщение)
+        this.updateChatInList(message);
+        
+        // Показываем уведомление если чат не активен
+        if (!this.currentChat || message.chatId !== this.currentChat.id) {
+            this.showNotification(`Новое сообщение от ${message.senderName}`, 'info');
+        }
+    }
+    
+    updateChatInList(message) {
+        const chatItem = document.querySelector(`[data-chat-id="${message.chatId}"]`);
+        if (chatItem) {
+            const lastMessageEl = chatItem.querySelector('.chat-last-message');
+            const timeEl = chatItem.querySelector('.chat-time');
+            
+            if (lastMessageEl) {
+                lastMessageEl.textContent = message.text.substring(0, 50) + (message.text.length > 50 ? '...' : '');
+            }
+            
+            if (timeEl) {
+                timeEl.textContent = this.formatTime(message.createdAt);
+            }
+            
+            // Перемещаем чат в начало списка
+            const chatsList = document.getElementById('chats-list');
+            if (chatsList) {
+                chatsList.insertBefore(chatItem, chatsList.firstChild);
+            }
+        }
     }
 
     sendMessage() {
@@ -499,19 +681,108 @@ class MessengerApp {
         const text = messageInput.value.trim();
         if (!text) return;
 
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки сообщения', 'error');
+            return;
+        }
+
         console.log('🔥 Отправляем сообщение:', text);
 
-        if (this.socket && this.currentChat) {
+        // Создаем временное сообщение для отображения
+        const tempMessage = {
+            id: 'temp-' + Date.now(),
+            text: text,
+            senderId: this.currentUser.id,
+            senderName: this.currentUser.username,
+            createdAt: new Date().toISOString(),
+            isTemp: true
+        };
+        
+        // Добавляем сообщение в интерфейс
+        this.addMessageToChat(tempMessage);
+        messageInput.value = '';
+
+        // Отправляем на сервер
+        if (this.socket) {
             this.socket.emit('send-message', {
                 chatId: this.currentChat.id,
                 text: text,
                 type: 'text'
             });
-
-            messageInput.value = '';
-            this.showNotification('Сообщение отправлено', 'success');
         } else {
-            this.showNotification('Выберите чат для отправки сообщения', 'error');
+            // Fallback через HTTP API
+            this.sendMessageHTTP(text);
+        }
+    }
+    
+    async sendMessageHTTP(text, type = 'text', fileData = null) {
+        try {
+            const messageData = {
+                chatId: this.currentChat.id,
+                text: text,
+                type: type
+            };
+            
+            if (fileData) {
+                messageData.fileData = fileData;
+            }
+            
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify(messageData)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.replaceTemporaryMessage(data.message);
+                this.showNotification('Сообщение отправлено', 'success');
+            } else {
+                this.showNotification('Ошибка отправки: ' + (data.message || 'Неизвестная ошибка'), 'error');
+                this.removeTemporaryMessage();
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при отправке сообщения:', error);
+            this.showNotification('Ошибка отправки сообщения', 'error');
+            this.removeTemporaryMessage();
+        }
+    }
+    
+    addMessageToChat(message) {
+        const messagesArea = document.getElementById('messages-area');
+        if (!messagesArea) return;
+        
+        // Удаляем пустое состояние если есть
+        const emptyMessages = messagesArea.querySelector('.empty-messages');
+        if (emptyMessages) {
+            emptyMessages.remove();
+        }
+        
+        const messageEl = this.createMessageElement(message);
+        if (message.isTemp) {
+            messageEl.classList.add('temp-message');
+        }
+        
+        messagesArea.appendChild(messageEl);
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    replaceTemporaryMessage(realMessage) {
+        const tempMessage = document.querySelector('.temp-message');
+        if (tempMessage) {
+            const realMessageEl = this.createMessageElement(realMessage);
+            tempMessage.replaceWith(realMessageEl);
+        }
+    }
+    
+    removeTemporaryMessage() {
+        const tempMessage = document.querySelector('.temp-message');
+        if (tempMessage) {
+            tempMessage.remove();
         }
     }
 
@@ -615,7 +886,80 @@ class MessengerApp {
         console.log('🔥 Открываем диалог выбора файла');
         const fileInput = document.getElementById('file-input');
         if (fileInput) {
+            fileInput.removeEventListener('change', this.handleFileSelect);
+            this.handleFileSelect = (e) => this.handleFileUpload(e);
+            fileInput.addEventListener('change', this.handleFileSelect);
             fileInput.click();
+        }
+    }
+    
+    async handleFileUpload(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки файла', 'error');
+            return;
+        }
+        
+        for (let file of files) {
+            await this.uploadAndSendFile(file);
+        }
+        
+        // Очищаем input
+        event.target.value = '';
+    }
+    
+    async uploadAndSendFile(file) {
+        // Проверяем размер файла (максимум 10MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            this.showNotification('Файл слишком большой (максимум 10MB)', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('chatId', this.currentChat.id);
+        
+        try {
+            this.showNotification('Загрузка файла...', 'info');
+            
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Отправляем сообщение с файлом
+                const fileMessage = {
+                    chatId: this.currentChat.id,
+                    text: `📎 ${file.name}`,
+                    type: 'file',
+                    fileData: {
+                        name: file.name,
+                        size: file.size,
+                        url: data.fileUrl,
+                        type: file.type
+                    }
+                };
+                
+                if (this.socket) {
+                    this.socket.emit('send-message', fileMessage);
+                } else {
+                    await this.sendMessageHTTP(fileMessage.text, fileMessage.type, fileMessage.fileData);
+                }
+                
+                this.showNotification('Файл отправлен!', 'success');
+            } else {
+                this.showNotification('Ошибка загрузки файла: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при загрузке файла:', error);
+            this.showNotification('Ошибка загрузки файла', 'error');
         }
     }
 
@@ -665,8 +1009,175 @@ class MessengerApp {
         if (usersModal) {
             usersModal.style.display = 'flex';
             usersModal.classList.add('active');
+            this.setupUserSearch();
         } else {
             this.showNotification('Модальное окно поиска не найдено', 'error');
+        }
+    }
+    
+    setupUserSearch() {
+        const userSearchInput = document.getElementById('user-search');
+        const usersList = document.getElementById('users-list');
+        
+        if (userSearchInput) {
+            // Удаляем предыдущие обработчики
+            userSearchInput.removeEventListener('input', this.handleUserSearch);
+            
+            // Добавляем новый обработчик
+            this.handleUserSearch = this.debounce((e) => {
+                const query = e.target.value.trim();
+                if (query.length >= 2) {
+                    this.searchUsers(query);
+                } else {
+                    this.clearUserSearchResults();
+                }
+            }, 300);
+            
+            userSearchInput.addEventListener('input', this.handleUserSearch);
+        }
+        
+        // Загружаем рекомендуемых пользователей
+        this.loadRecommendedUsers();
+    }
+    
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    async searchUsers(query) {
+        try {
+            const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.renderUserSearchResults(data.users || []);
+            } else {
+                this.showNotification('Ошибка поиска: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при поиске пользователей:', error);
+            this.showNotification('Ошибка поиска пользователей', 'error');
+        }
+    }
+    
+    async loadRecommendedUsers() {
+        try {
+            const response = await fetch('/api/users/recommended', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.renderUserSearchResults(data.users || [], 'Рекомендуемые пользователи');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при загрузке рекомендаций:', error);
+        }
+    }
+    
+    renderUserSearchResults(users, title = 'Результаты поиска') {
+        const usersList = document.getElementById('users-list');
+        if (!usersList) return;
+        
+        if (users.length === 0) {
+            usersList.innerHTML = `
+                <div class="empty-users">
+                    <div class="empty-icon">👥</div>
+                    <p>Пользователи не найдены</p>
+                </div>
+            `;
+            return;
+        }
+        
+        usersList.innerHTML = `<h4>${title}</h4>`;
+        
+        users.forEach(user => {
+            const userItem = document.createElement('div');
+            userItem.className = 'user-item';
+            userItem.innerHTML = `
+                <div class="user-avatar">
+                    <img src="${user.avatar || '/default-avatar.png'}" alt="${user.username}">
+                    <div class="status-indicator ${user.isOnline ? 'online' : 'offline'}"></div>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">${this.escapeHtml(user.username)}</div>
+                    <div class="user-status">${user.isOnline ? 'в сети' : 'не в сети'}</div>
+                </div>
+                <div class="user-actions">
+                    <button class="btn-primary start-chat-btn" data-user-id="${user.id}">
+                        💬 Написать
+                    </button>
+                </div>
+            `;
+            
+            usersList.appendChild(userItem);
+        });
+        
+        // Добавляем обработчики для кнопок "Написать"
+        const startChatBtns = usersList.querySelectorAll('.start-chat-btn');
+        startChatBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const userId = e.target.dataset.userId;
+                this.startChatWithUser(userId);
+            });
+        });
+    }
+    
+    clearUserSearchResults() {
+        const usersList = document.getElementById('users-list');
+        if (usersList) {
+            usersList.innerHTML = '<p>Введите имя пользователя для поиска...</p>';
+        }
+    }
+    
+    async startChatWithUser(userId) {
+        try {
+            const response = await fetch('/api/chats/create', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify({ userId: userId })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Закрываем модальное окно поиска
+                const usersModal = document.getElementById('users-modal');
+                if (usersModal) {
+                    usersModal.style.display = 'none';
+                    usersModal.classList.remove('active');
+                }
+                
+                // Обновляем список чатов
+                this.loadChats();
+                
+                // Открываем новый чат
+                setTimeout(() => {
+                    this.selectChat(data.chat);
+                }, 500);
+                
+                this.showNotification('Чат создан!', 'success');
+            } else {
+                this.showNotification('Ошибка создания чата: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при создании чата:', error);
+            this.showNotification('Ошибка создания чата', 'error');
         }
     }
 
@@ -735,9 +1246,11 @@ class MessengerApp {
         switch(settingType) {
             case 'profile':
                 targetScreen = document.getElementById('profile-settings');
+                this.setupProfileSettings();
                 break;
             case 'themes':
                 targetScreen = document.getElementById('themes-settings');
+                this.setupThemeSettings();
                 break;
             default:
                 this.showNotification(`Настройка "${settingType}" пока не реализована`, 'info');
@@ -748,6 +1261,102 @@ class MessengerApp {
             targetScreen.style.display = 'block';
             console.log('🔥 Подэкран открыт:', settingType);
         }
+    }
+    
+    setupProfileSettings() {
+        // Заполняем поля текущими данными
+        this.updateSettingsProfile();
+        
+        // Добавляем обработчик для кнопки сохранения
+        const saveBtn = document.querySelector('.save-btn');
+        if (saveBtn) {
+            saveBtn.removeEventListener('click', this.handleSaveProfile);
+            this.handleSaveProfile = () => this.saveProfileSettings();
+            saveBtn.addEventListener('click', this.handleSaveProfile);
+        }
+    }
+    
+    async saveProfileSettings() {
+        const usernameInput = document.getElementById('settings-username');
+        const passwordInput = document.getElementById('settings-password');
+        
+        if (!usernameInput) {
+            this.showNotification('Поля формы не найдены', 'error');
+            return;
+        }
+        
+        const username = usernameInput.value.trim();
+        const password = passwordInput ? passwordInput.value : '';
+        
+        if (!username) {
+            this.showNotification('Имя пользователя не может быть пустым', 'error');
+            return;
+        }
+        
+        try {
+            const updateData = { username };
+            if (password) {
+                updateData.password = password;
+            }
+            
+            const response = await fetch('/api/profile/update', {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Обновляем данные пользователя
+                this.currentUser.username = username;
+                this.updateUserProfile();
+                
+                // Очищаем поле пароля
+                if (passwordInput) {
+                    passwordInput.value = '';
+                }
+                
+                this.showNotification('Профиль обновлен!', 'success');
+            } else {
+                this.showNotification('Ошибка обновления: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при обновлении профиля:', error);
+            this.showNotification('Ошибка обновления профиля', 'error');
+        }
+    }
+    
+    setupThemeSettings() {
+        const themeOptions = document.querySelectorAll('.theme-option');
+        themeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                // Убираем активный класс у всех тем
+                themeOptions.forEach(opt => opt.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной теме
+                option.classList.add('active');
+                
+                const theme = option.dataset.theme;
+                this.applyTheme(theme);
+                
+                this.showNotification(`Тема "${theme}" применена`, 'success');
+            });
+        });
+    }
+    
+    applyTheme(theme) {
+        // Сохраняем выбранную тему
+        localStorage.setItem('selectedTheme', theme);
+        
+        // Применяем тему (пока просто логируем)
+        console.log('🔥 Применяем тему:', theme);
+        
+        // Здесь можно добавить логику смены CSS классов или переменных
+        document.body.className = `theme-${theme}`;
     }
 }
 
