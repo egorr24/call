@@ -110,16 +110,33 @@ class MessengerApp {
     }
 
     switchAuthTab(tab) {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
+        console.log('🔥 Переключаем вкладку на:', tab);
         
-        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-        document.getElementById(`${tab}-form`).classList.add('active');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const authForms = document.querySelectorAll('.auth-form');
+        
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        authForms.forEach(form => form.classList.remove('active'));
+        
+        const targetTab = document.querySelector(`[data-tab="${tab}"]`);
+        const targetForm = document.getElementById(`${tab}-form`);
+        
+        if (targetTab) targetTab.classList.add('active');
+        if (targetForm) targetForm.classList.add('active');
     }
 
     async handleLogin() {
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value;
+        const emailEl = document.getElementById('login-email');
+        const passwordEl = document.getElementById('login-password');
+        
+        if (!emailEl || !passwordEl) {
+            console.error('🔥 Элементы формы входа не найдены');
+            this.showNotification('Ошибка: элементы формы не найдены', 'error');
+            return;
+        }
+        
+        const email = emailEl.value.trim();
+        const password = passwordEl.value;
 
         console.log('🔥 Попытка входа:', { email, password: '***' });
 
@@ -156,9 +173,19 @@ class MessengerApp {
     }
 
     async handleRegister() {
-        const email = document.getElementById('register-email').value.trim();
-        const username = document.getElementById('register-username').value.trim();
-        const password = document.getElementById('register-password').value;
+        const emailEl = document.getElementById('register-email');
+        const usernameEl = document.getElementById('register-username');
+        const passwordEl = document.getElementById('register-password');
+        
+        if (!emailEl || !usernameEl || !passwordEl) {
+            console.error('🔥 Элементы формы регистрации не найдены');
+            this.showNotification('Ошибка: элементы формы не найдены', 'error');
+            return;
+        }
+        
+        const email = emailEl.value.trim();
+        const username = usernameEl.value.trim();
+        const password = passwordEl.value;
 
         console.log('🔥 Попытка регистрации:', { email, username, password: '***' });
 
@@ -196,14 +223,18 @@ class MessengerApp {
         }
     }
     checkAuthStatus() {
+        console.log('🔥 Проверяем статус авторизации');
         const token = localStorage.getItem('token');
+        
         if (token) {
+            console.log('🔥 Токен найден, проверяем на сервере');
             // Verify token with server
             fetch('/api/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             .then(response => response.json())
             .then(data => {
+                console.log('🔥 Ответ проверки токена:', data);
                 if (data.success) {
                     this.currentUser = data.user;
                     this.showMainScreen();
@@ -213,31 +244,48 @@ class MessengerApp {
                     this.showAuthScreen();
                 }
             })
-            .catch(() => {
+            .catch((error) => {
+                console.error('🔥 Ошибка проверки токена:', error);
                 localStorage.removeItem('token');
                 this.showAuthScreen();
             });
         } else {
+            console.log('🔥 Токен не найден, показываем экран авторизации');
             this.showAuthScreen();
         }
     }
 
     showAuthScreen() {
-        document.getElementById('auth-screen').classList.add('active');
-        document.getElementById('main-screen').classList.remove('active');
+        const authScreen = document.getElementById('auth-screen');
+        const messengerScreen = document.getElementById('messenger-screen');
+        
+        if (authScreen) authScreen.classList.add('active');
+        if (messengerScreen) messengerScreen.classList.remove('active');
     }
 
     showMainScreen() {
-        document.getElementById('auth-screen').classList.remove('active');
-        document.getElementById('main-screen').classList.add('active');
+        const authScreen = document.getElementById('auth-screen');
+        const messengerScreen = document.getElementById('messenger-screen');
+        
+        if (authScreen) authScreen.classList.remove('active');
+        if (messengerScreen) messengerScreen.classList.add('active');
         this.loadChats();
     }
 
     connectSocket() {
+        if (typeof io === 'undefined') {
+            console.error('🔥 Socket.IO не загружен');
+            return;
+        }
+        
+        console.log('🔥 Подключаемся к Socket.IO');
         this.socket = io();
         
         this.socket.on('connect', () => {
-            this.socket.emit('user-online', this.currentUser.id);
+            console.log('🔥 Socket.IO подключен');
+            if (this.currentUser) {
+                this.socket.emit('user-online', this.currentUser.id);
+            }
         });
 
         this.socket.on('new-message', (message) => {
@@ -302,6 +350,11 @@ class MessengerApp {
 
     renderChatList(chats) {
         const chatList = document.getElementById('chat-list');
+        if (!chatList) {
+            console.warn('🔥 Элемент chat-list не найден');
+            return;
+        }
+        
         chatList.innerHTML = '';
         
         chats.forEach(chat => {
