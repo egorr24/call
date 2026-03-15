@@ -59,12 +59,13 @@ class MessengerApp {
             console.log('🔥 Клик внутри модального окна:', modal.id);
             
             // Обработка кликов внутри модальных окон
-            if (target.classList.contains('close-btn')) {
+            if (target.classList.contains('close-btn') || target.closest('.close-btn')) {
                 console.log('🔥 Закрываем модальное окно');
                 modal.style.display = 'none';
                 return;
             }
             
+            // Статусы
             if (target.classList.contains('status-option') || target.closest('.status-option')) {
                 const statusOption = target.closest('.status-option') || target;
                 const status = statusOption.dataset.status;
@@ -73,24 +74,79 @@ class MessengerApp {
                 return;
             }
             
+            // Кнопка установить статус
             if (target.classList.contains('set-status-btn') || target.textContent.includes('Установить')) {
                 console.log('🔥 Устанавливаем пользовательский статус');
                 this.setCustomStatus();
                 return;
             }
             
-            if (target.textContent.includes('Сохранить изменения')) {
+            // Кнопки настроек
+            if (target.textContent.includes('Сохранить изменения') || target.classList.contains('btn-primary')) {
                 console.log('🔥 Сохраняем настройки');
                 this.saveSettings();
                 return;
             }
             
-            if (target.textContent.includes('Написать')) {
-                const userId = target.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+            if (target.textContent.includes('Отмена') || target.classList.contains('btn-secondary')) {
+                console.log('🔥 Отмена');
+                modal.style.display = 'none';
+                return;
+            }
+            
+            // Кнопка "Написать" в списке пользователей
+            if (target.textContent.includes('Написать') || target.classList.contains('btn-primary')) {
+                console.log('🔥 Кнопка "Написать" нажата');
+                // Ищем ID пользователя в data атрибуте кнопки
+                let userId = target.dataset.userId;
+                
+                if (!userId) {
+                    // Ищем в родительском элементе
+                    const userItem = target.closest('.user-item');
+                    if (userItem) {
+                        userId = userItem.dataset.userId;
+                    }
+                }
+                
                 if (userId) {
                     console.log('🔥 Создаем чат с пользователем:', userId);
                     this.startChat(userId);
+                } else {
+                    console.warn('🔥 ID пользователя не найден');
+                    this.showNotification('Ошибка: ID пользователя не найден', 'error');
                 }
+                return;
+            }
+            
+            // Вкладки настроек
+            if (target.classList.contains('settings-tab')) {
+                console.log('🔥 Переключаем вкладку настроек:', target.dataset.tab);
+                this.switchSettingsTab(target.dataset.tab);
+                return;
+            }
+            
+            // Выбор темы
+            if (target.classList.contains('theme-card') || target.closest('.theme-card')) {
+                const themeCard = target.closest('.theme-card') || target;
+                const theme = themeCard.dataset.theme;
+                console.log('🔥 Выбираем тему:', theme);
+                this.selectTheme(theme);
+                return;
+            }
+            
+            // Тип чата
+            if (target.classList.contains('chat-type-btn')) {
+                console.log('🔥 Выбираем тип чата:', target.dataset.type);
+                this.selectChatType(target.dataset.type);
+                return;
+            }
+            
+            // Игры
+            if (target.classList.contains('game-card') || target.closest('.game-card')) {
+                const gameCard = target.closest('.game-card') || target;
+                const game = gameCard.dataset.game;
+                console.log('🔥 Выбираем игру:', game);
+                this.startGame(game);
                 return;
             }
             
@@ -141,6 +197,25 @@ class MessengerApp {
         } else if (target.title === 'Аудиозвонок' || (button && button.title === 'Аудиозвонок')) {
             console.log('🔥 Аудиозвонок');
             this.startAudioCall();
+        }
+        // Message sending
+        else if (target.classList.contains('send-btn') || target.title === 'Отправить' || (button && button.title === 'Отправить')) {
+            console.log('🔥 Отправляем сообщение');
+            this.sendMessage();
+        }
+        // File attachment
+        else if (target.title === 'Прикрепить файл' || (button && button.title === 'Прикрепить файл')) {
+            console.log('🔥 Прикрепляем файл');
+            document.getElementById('file-input').click();
+        }
+        // Photo attachment
+        else if (target.title === 'Отправить фото' || (button && button.title === 'Отправить фото')) {
+            console.log('🔥 Отправляем фото');
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => this.handleFileSelect(e);
+            input.click();
         }
         // Settings tabs
         else if (target.classList.contains('settings-tab')) {
@@ -1053,6 +1128,7 @@ class MessengerApp {
         users.forEach(user => {
             const userItem = document.createElement('div');
             userItem.className = 'user-item';
+            userItem.dataset.userId = user.id; // Добавляем ID в data атрибут
             userItem.innerHTML = `
                 <div class="user-avatar">
                     <img src="${user.avatar || '/default-avatar.png'}" alt="${user.username}">
@@ -1062,7 +1138,7 @@ class MessengerApp {
                     <div class="user-name">${this.escapeHtml(user.username)}</div>
                     <div class="user-status">${user.isOnline ? 'в сети' : 'не в сети'}</div>
                 </div>
-                <button class="btn-primary" onclick="app.startChat('${user.id}')">Написать</button>
+                <button class="btn-primary" data-user-id="${user.id}">Написать</button>
             `;
             usersList.appendChild(userItem);
         });
