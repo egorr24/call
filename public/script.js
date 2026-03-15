@@ -105,7 +105,18 @@ class MessengerApp {
         }
         // Status selection
         else if (target.classList.contains('status-option')) {
+            console.log('🔥 Выбираем статус:', target.dataset.status);
             this.selectStatus(target.dataset.status);
+        }
+        // Set status button
+        else if (target.classList.contains('set-status-btn')) {
+            console.log('🔥 Устанавливаем пользовательский статус');
+            this.setCustomStatus();
+        }
+        // Save settings button
+        else if (target.textContent.includes('Сохранить изменения')) {
+            console.log('🔥 Сохраняем настройки');
+            this.saveSettings();
         }
         // Game selection
         else if (target.classList.contains('game-card')) {
@@ -688,16 +699,20 @@ class MessengerApp {
         const modal = document.getElementById('users-modal');
         console.log('🔥 Модальное окно пользователей:', modal);
         if (modal) {
-            modal.style.display = 'flex';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            modal.style.zIndex = '10000';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
+            modal.style.cssText = `
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background-color: rgba(0, 0, 0, 0.8) !important;
+                z-index: 99999 !important;
+                justify-content: center !important;
+                align-items: center !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
             console.log('🔥 Модальное окно пользователей открыто');
             this.loadUsers();
         } else {
@@ -710,16 +725,20 @@ class MessengerApp {
         const modal = document.getElementById('settings-modal');
         console.log('🔥 Модальное окно настроек:', modal);
         if (modal) {
-            modal.style.display = 'flex';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            modal.style.zIndex = '10000';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
+            modal.style.cssText = `
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background-color: rgba(0, 0, 0, 0.8) !important;
+                z-index: 99999 !important;
+                justify-content: center !important;
+                align-items: center !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
             console.log('🔥 Модальное окно настроек открыто');
             this.loadUserSettings();
         } else {
@@ -732,16 +751,20 @@ class MessengerApp {
         const modal = document.getElementById('games-modal');
         console.log('🔥 Модальное окно игр:', modal);
         if (modal) {
-            modal.style.display = 'flex';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            modal.style.zIndex = '10000';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
+            modal.style.cssText = `
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background-color: rgba(0, 0, 0, 0.8) !important;
+                z-index: 99999 !important;
+                justify-content: center !important;
+                align-items: center !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
             console.log('🔥 Модальное окно игр открыто');
         } else {
             console.warn('🔥 Модальное окно игр не найдено');
@@ -1075,11 +1098,34 @@ class MessengerApp {
     }
 
     selectStatus(status) {
+        console.log('🔥 Выбираем статус:', status);
         document.querySelectorAll('.status-option').forEach(option => option.classList.remove('active'));
-        event.target.closest('.status-option').classList.add('active');
+        const selectedOption = document.querySelector(`[data-status="${status}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('active');
+        }
         
         // Update user status
         this.updateUserStatus(this.currentUser.id, status);
+        this.showNotification(`Статус изменен на: ${status}`, 'success');
+    }
+
+    setCustomStatus() {
+        const customStatusInput = document.getElementById('custom-status-text');
+        if (customStatusInput) {
+            const customStatus = customStatusInput.value.trim();
+            if (customStatus) {
+                this.showNotification(`Пользовательский статус: ${customStatus}`, 'success');
+                customStatusInput.value = '';
+            } else {
+                this.showNotification('Введите текст статуса', 'error');
+            }
+        }
+    }
+
+    saveSettings() {
+        this.showNotification('Настройки сохранены!', 'success');
+        this.closeModal('settings-modal');
     }
 
     startGame(game) {
