@@ -630,6 +630,133 @@ app.get('/api/chats', authenticateToken, async (req, res) => {
     }
 });
 
+// Создать чат с пользователем
+app.post('/api/chats/create', authenticateToken, async (req, res) => {
+    try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'ID пользователя обязателен' });
+        }
+        
+        if (useDatabase) {
+            // Проверяем, существует ли уже чат между этими пользователями
+            const existingChatParticipants = await ChatParticipant.findAll({
+                where: { userId: [req.userId, userId] },
+                include: [{ model: Chat, where: { type: 'private' } }]
+            });
+            
+            // Группируем по chatId и ищем чат с обоими участниками
+            const chatCounts = {};
+            existingChatParticipants.forEach(participant => {
+                const chatId = participant.Chat.id;
+                chatCounts[chatId] = (chatCounts[chatId] || 0) + 1;
+            });
+            
+            const existingChatId = Object.keys(chatCounts).find(chatId => chatCounts[chatId] === 2);
+            
+            if (existingChatId) {
+                // Чат уже существует
+                const existingChat = await Chat.findByPk(existingChatId);
+                const otherUser = await User.findByPk(userId, {
+                    attributes: ['id', 'username', 'avatar']
+                });
+                
+                return res.json({
+                    success: true,
+                    chat: {
+                        id: existingChat.id,
+                        name: otherUser.username,
+                        avatar: otherUser.avatar,
+                        isOnline: onlineUsers.has(otherUser.id),
+                        lastMessage: null,
+                        lastMessageTime: null,
+                        unreadCount: 0
+                    }
+                });
+            }
+            
+            // Создаем новый чат
+            const chat = await Chat.create({
+                type: 'private'
+            });
+            
+            // Добавляем участников
+            await ChatParticipant.bulkCreate([
+                { chatId: chat.id, userId: req.userId },
+                { chatId: chat.id, userId: userId }
+            ]);
+            
+            const otherUser = await User.findByPk(userId, {
+                attributes: ['id', 'username', 'avatar']
+            });
+            
+            res.json({
+                success: true,
+                chat: {
+                    id: chat.id,
+                    name: otherUser.username,
+                    avatar: otherUser.avatar,
+                    isOnline: onlineUsers.has(otherUser.id),
+                    lastMessage: null,
+                    lastMessageTime: null,
+                    unreadCount: 0
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const existingChat = Array.from(chats.values()).find(chat =>
+                chat.participants.includes(req.userId) && chat.participants.includes(userId)
+            );
+            
+            if (existingChat) {
+                const otherUser = users.get(userId);
+                return res.json({
+                    success: true,
+                    chat: {
+                        id: existingChat.id,
+                        name: otherUser.username,
+                        avatar: otherUser.avatar,
+                        isOnline: onlineUsers.has(otherUser.id),
+                        lastMessage: null,
+                        lastMessageTime: null,
+                        unreadCount: 0
+                    }
+                });
+            }
+            
+            // Создаем новый чат
+            const chatId = Date.now().toString();
+            const chat = {
+                id: chatId,
+                participants: [req.userId, userId],
+                type: 'private',
+                createdAt: new Date()
+            };
+            
+            chats.set(chatId, chat);
+            messages.set(chatId, []);
+            
+            const otherUser = users.get(userId);
+            res.json({
+                success: true,
+                chat: {
+                    id: chatId,
+                    name: otherUser.username,
+                    avatar: otherUser.avatar,
+                    isOnline: onlineUsers.has(otherUser.id),
+                    lastMessage: null,
+                    lastMessageTime: null,
+                    unreadCount: 0
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка создания чата:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
 // Получить сообщения чата
 app.get('/api/chats/:chatId/messages', authenticateToken, async (req, res) => {
     try {
@@ -770,6 +897,117 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Ошибка создания группы:', error);
         res.status(500).json({ error: 'Ошибка создания группы' });
+    }
+});
+
+// Отправить сообщение
+app.post('/api/messages', authenticateToken, async (req, res) => {
+    try {
+        const { chatId, text } = req.body;
+        
+        if (!chatId || !text) {
+            return res.status(400).json({ success: false, message: 'ID чата и текст сообщения обязательны' });
+        }
+        
+        if (useDatabase) {
+            // Проверяем, что пользователь участник чата
+            const participant = await ChatParticipant.findOne({
+                where: { chatId, userId: req.userId }
+            });
+            
+            if (!participant) {
+                return res.status(403).json({ success: false, message: 'Доступ запрещен' });
+            }
+            
+            // Создаем сообщение
+            const message = await Message.create({
+                chatId,
+                senderId: req.userId,
+                text,
+                type: 'text'
+            });
+            
+            // Получаем данные отправителя
+            const sender = await User.findByPk(req.userId, {
+                attributes: ['id', 'username', 'avatar']
+            });
+            
+            const messageData = {
+                id: message.id,
+                chatId: message.chatId,
+                senderId: message.senderId,
+                text: message.text,
+                type: message.type,
+                timestamp: message.createdAt,
+                sender: {
+                    id: sender.id,
+                    username: sender.username,
+                    avatar: sender.avatar
+                }
+            };
+            
+            // Отправляем через Socket.IO всем участникам чата
+            const participants = await ChatParticipant.findAll({
+                where: { chatId },
+                include: [{ model: User, attributes: ['id'] }]
+            });
+            
+            participants.forEach(participant => {
+                const userId = participant.User.id;
+                const userSockets = Array.from(io.sockets.sockets.values())
+                    .filter(socket => socket.userId === userId);
+                
+                userSockets.forEach(socket => {
+                    socket.emit('new-message', messageData);
+                });
+            });
+            
+            res.json({ success: true, message: messageData });
+        } else {
+            // Используем Map (fallback)
+            const chat = chats.get(chatId);
+            
+            if (!chat || !chat.participants.includes(req.userId)) {
+                return res.status(403).json({ success: false, message: 'Доступ запрещен' });
+            }
+            
+            const messageId = Date.now().toString();
+            const sender = users.get(req.userId);
+            
+            const messageData = {
+                id: messageId,
+                chatId,
+                senderId: req.userId,
+                text,
+                type: 'text',
+                timestamp: new Date(),
+                sender: {
+                    id: sender.id,
+                    username: sender.username,
+                    avatar: sender.avatar
+                }
+            };
+            
+            // Добавляем сообщение в хранилище
+            const chatMessages = messages.get(chatId) || [];
+            chatMessages.push(messageData);
+            messages.set(chatId, chatMessages);
+            
+            // Отправляем через Socket.IO всем участникам чата
+            chat.participants.forEach(userId => {
+                const userSockets = Array.from(io.sockets.sockets.values())
+                    .filter(socket => socket.userId === userId);
+                
+                userSockets.forEach(socket => {
+                    socket.emit('new-message', messageData);
+                });
+            });
+            
+            res.json({ success: true, message: messageData });
+        }
+    } catch (error) {
+        console.error('Ошибка отправки сообщения:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
 

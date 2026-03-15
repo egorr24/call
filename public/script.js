@@ -119,6 +119,21 @@ class MessengerApp {
         else if (target.classList.contains('draw-tool')) {
             this.selectDrawTool(target.dataset.tool);
         }
+        // Close buttons
+        else if (target.classList.contains('close-btn')) {
+            console.log('🔥 Закрываем модальное окно');
+            const modal = target.closest('.modal');
+            if (modal) {
+                modal.style.display = 'none';
+                console.log('🔥 Модальное окно закрыто');
+            }
+        }
+        // Close modal by clicking on background
+        else if (target.classList.contains('modal')) {
+            console.log('🔥 Клик по фону модального окна');
+            target.style.display = 'none';
+            console.log('🔥 Модальное окно закрыто');
+        }
     }
     handleEnterKey(e) {
         if (e.target.id === 'message-input') {
@@ -447,24 +462,53 @@ class MessengerApp {
     }
 
     selectChat(chat) {
+        console.log('🔥 Выбираем чат:', chat);
         this.currentChat = chat;
         
         // Update UI
         document.querySelectorAll('.chat-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-chat-id="${chat.id}"]`).classList.add('active');
+        
+        const chatItem = document.querySelector(`[data-chat-id="${chat.id}"]`);
+        if (chatItem) {
+            chatItem.classList.add('active');
+        }
         
         // Update chat header
-        document.querySelector('.chat-name').textContent = chat.name;
-        document.querySelector('.chat-status').textContent = chat.isOnline ? 'в сети' : 'не в сети';
-        document.querySelector('.chat-avatar img').src = chat.avatar || '/default-avatar.png';
+        const chatUsername = document.getElementById('chat-username');
+        const chatStatus = document.getElementById('chat-status');
+        const chatAvatar = document.getElementById('chat-avatar');
+        
+        if (chatUsername) {
+            chatUsername.textContent = chat.name;
+        } else {
+            console.warn('🔥 Элемент chat-username не найден');
+        }
+        
+        if (chatStatus) {
+            chatStatus.textContent = chat.isOnline ? 'в сети' : 'не в сети';
+        } else {
+            console.warn('🔥 Элемент chat-status не найден');
+        }
+        
+        if (chatAvatar) {
+            chatAvatar.src = chat.avatar || '/default-avatar.png';
+        } else {
+            console.warn('🔥 Элемент chat-avatar не найден');
+        }
         
         // Load messages
         this.loadMessages(chat.id);
         
         // Show chat area
-        document.querySelector('.chat-area').style.display = 'flex';
+        const chatArea = document.querySelector('.chat-area');
+        if (chatArea) {
+            chatArea.style.display = 'flex';
+            console.log('🔥 Область чата показана');
+        } else {
+            console.warn('🔥 Элемент chat-area не найден');
+        }
     }
 
     async loadMessages(chatId) {
@@ -683,6 +727,9 @@ class MessengerApp {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.style.display = 'none';
+            console.log('🔥 Модальное окно закрыто:', modalId);
+        } else {
+            console.warn('🔥 Модальное окно не найдено:', modalId);
         }
     }
 
@@ -896,6 +943,7 @@ class MessengerApp {
     }
 
     async startChat(userId) {
+        console.log('🔥 Создаем чат с пользователем:', userId);
         try {
             const response = await fetch('/api/chats/create', {
                 method: 'POST',
@@ -906,14 +954,20 @@ class MessengerApp {
                 body: JSON.stringify({ userId })
             });
             
+            console.log('🔥 Ответ создания чата:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные создания чата:', data);
             
             if (data.success) {
                 this.closeModal('users-modal');
                 this.selectChat(data.chat);
                 this.loadChats(); // Refresh chat list
+                this.showNotification('Чат создан!', 'success');
+            } else {
+                this.showNotification('Ошибка создания чата: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при создании чата:', error);
             this.showNotification('Ошибка создания чата', 'error');
         }
     }
