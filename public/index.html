@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#1a1a1a">
+    <meta name="theme-color" content="#0f0f23">
     <meta name="apple-mobile-web-app-title" content="Flux Messenger">
     
     <!-- Оптимизация для производительности -->
@@ -14,24 +14,30 @@
     
     <!-- Предзагрузка критических ресурсов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://api.dicebear.com">
-    <title>Flux Messenger</title>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <title>🔥 Flux Messenger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="new-features.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Экран авторизации -->
+    <!-- 🎨 Экран авторизации -->
     <div id="auth-screen" class="screen active">
-        <div class="auth-container">
+        <div class="auth-container glass-effect">
             <div class="auth-header">
-                <h1><i class="fas fa-comments"></i> Flux</h1>
+                <h1><i class="fas fa-bolt"></i> Flux</h1>
                 <p>Современный мессенджер нового поколения</p>
             </div>
             
             <div class="auth-tabs">
-                <button class="tab-btn active" data-tab="login">Вход</button>
-                <button class="tab-btn" data-tab="register">Регистрация</button>
+                <button class="tab-btn active" data-tab="login">
+                    <i class="fas fa-sign-in-alt"></i> Вход
+                </button>
+                <button class="tab-btn" data-tab="register">
+                    <i class="fas fa-user-plus"></i> Регистрация
+                </button>
             </div>
             
             <!-- Форма входа -->
@@ -44,8 +50,8 @@
                     <i class="fas fa-lock"></i>
                     <input type="password" id="login-password" class="form-input" placeholder="Пароль" required autocomplete="current-password">
                 </div>
-                <button type="button" class="auth-btn btn-primary">
-                    <i class="fas fa-sign-in-alt"></i> <span>Войти</span>
+                <button type="button" class="auth-btn">
+                    <i class="fas fa-rocket"></i> <span>Войти в Flux</span>
                 </button>
             </div>
             
@@ -63,37 +69,37 @@
                     <i class="fas fa-lock"></i>
                     <input type="password" id="register-password" class="form-input" placeholder="Пароль (минимум 6 символов)" required autocomplete="new-password">
                 </div>
-                <button type="button" class="auth-btn btn-primary">
-                    <i class="fas fa-user-plus"></i> <span>Зарегистрироваться</span>
+                <button type="button" class="auth-btn">
+                    <i class="fas fa-star"></i> <span>Создать аккаунт</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Главный экран мессенджера -->
+    <!-- 🚀 Главный экран мессенджера -->
     <div id="messenger-screen" class="screen">
         <div class="messenger-container">
-            <!-- Боковая панель -->
-            <div class="sidebar">
+            <!-- 📱 Боковая панель -->
+            <div class="sidebar glass-effect">
                 <div class="sidebar-header">
                     <div class="user-info">
                         <img id="user-avatar" src="" alt="Avatar" class="avatar">
                         <div class="user-details">
-                            <span id="user-name"></span>
-                            <span class="status online">В сети</span>
+                            <span id="user-name">Загрузка...</span>
+                            <span class="status online">🔥 В сети</span>
                         </div>
                     </div>
                     <div class="header-actions">
-                        <button class="icon-btn" title="Статус">
+                        <button class="icon-btn hover-lift" title="Статус">
                             <i class="fas fa-circle"></i>
                         </button>
-                        <button class="icon-btn" title="Найти пользователей">
+                        <button class="icon-btn hover-lift" title="Найти пользователей">
                             <i class="fas fa-user-plus"></i>
                         </button>
-                        <button class="icon-btn" title="Настройки">
+                        <button class="icon-btn hover-lift" title="Настройки">
                             <i class="fas fa-cog"></i>
                         </button>
-                        <button class="icon-btn" title="Выйти">
+                        <button class="icon-btn hover-lift" title="Выйти">
                             <i class="fas fa-sign-out-alt"></i>
                         </button>
                     </div>
@@ -101,7 +107,7 @@
                 
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Поиск чатов..." id="chat-search">
+                    <input type="text" placeholder="🔍 Поиск чатов..." id="chat-search">
                 </div>
                 
                 <div class="chats-list" id="chats-list">
@@ -109,11 +115,11 @@
                 </div>
             </div>
 
-            <!-- Область чата -->
-            <div class="chat-area">
+            <!-- 💬 Область чата -->
+            <div class="chat-area glass-effect">
                 <div id="no-chat-selected" class="no-chat">
                     <i class="fas fa-comments"></i>
-                    <h3>Выберите чат для начала общения</h3>
+                    <h3>🔥 Выберите чат</h3>
                     <p>Выберите существующий чат или найдите пользователя для создания нового</p>
                 </div>
                 
@@ -122,18 +128,18 @@
                         <div class="chat-user-info">
                             <img id="chat-avatar" src="" alt="Avatar" class="avatar">
                             <div class="chat-user-details">
-                                <span id="chat-username"></span>
-                                <span id="chat-status" class="status"></span>
+                                <span id="chat-username">Пользователь</span>
+                                <span id="chat-status" class="status">статус</span>
                             </div>
                         </div>
                         <div class="chat-actions">
-                            <button class="icon-btn" title="Игры">
+                            <button class="icon-btn hover-lift" title="Игры">
                                 <i class="fas fa-gamepad"></i>
                             </button>
-                            <button class="icon-btn" title="Видеозвонок">
+                            <button class="icon-btn hover-lift" title="Видеозвонок">
                                 <i class="fas fa-video"></i>
                             </button>
-                            <button class="icon-btn" title="Аудиозвонок">
+                            <button class="icon-btn hover-lift" title="Аудиозвонок">
                                 <i class="fas fa-phone"></i>
                             </button>
                         </div>
@@ -144,34 +150,37 @@
                     </div>
                     
                     <div class="message-input-container">
-                        <div class="message-input">
+                        <div class="message-input glass-effect">
                             <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.rar" multiple>
-                            <button class="icon-btn" title="Прикрепить файл">
+                            
+                            <button class="icon-btn hover-lift" title="Прикрепить файл">
                                 <i class="fas fa-paperclip"></i>
                             </button>
-                            <button class="icon-btn" title="Отправить фото">
-                                <i class="fas fa-image"></i>
+                            <button class="icon-btn hover-lift" title="Отправить фото">
+                                <i class="fas fa-camera"></i>
                             </button>
-                            <button class="icon-btn sticker-btn" title="Стикеры и GIF" id="sticker-btn">
+                            <button class="icon-btn hover-lift sticker-btn" title="Стикеры и GIF" id="sticker-btn">
                                 <i class="fas fa-smile"></i>
                             </button>
-                            <button class="icon-btn poll-btn" title="Создать опрос" id="poll-btn">
+                            <button class="icon-btn hover-lift poll-btn" title="Создать опрос" id="poll-btn">
                                 <i class="fas fa-poll"></i>
                             </button>
-                            <button class="icon-btn draw-btn" title="Совместное рисование" id="draw-btn">
+                            <button class="icon-btn hover-lift draw-btn" title="Совместное рисование" id="draw-btn">
                                 <i class="fas fa-paint-brush"></i>
                             </button>
-                            <button class="icon-btn voice-btn" title="Голосовое сообщение" id="voice-btn">
+                            <button class="icon-btn hover-lift voice-btn" title="Голосовое сообщение" id="voice-btn">
                                 <i class="fas fa-microphone"></i>
                             </button>
-                            <input type="text" id="message-input" placeholder="Введите сообщение..." maxlength="1000">
-                            <button class="icon-btn send-btn" title="Отправить">
+                            
+                            <input type="text" id="message-input" placeholder="💬 Введите сообщение..." maxlength="1000">
+                            
+                            <button class="icon-btn send-btn hover-glow" title="Отправить">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
                         
-                        <!-- ИМБОВЫЙ индикатор записи голоса -->
-                        <div id="voice-recording" class="voice-recording" style="display: none;">
+                        <!-- 🎤 Индикатор записи голоса -->
+                        <div id="voice-recording" class="voice-recording">
                             <div class="voice-recording-content">
                                 <div class="voice-wave">
                                     <div class="wave-bar"></div>
@@ -189,6 +198,7 @@
                                 </button>
                             </div>
                         </div>
+                        
                         <div id="file-preview" class="file-preview" style="display: none;"></div>
                         
                         <!-- Панель стикеров и GIF -->
@@ -268,12 +278,12 @@
         </div>
     </div>
 
-    <!-- Модальное окно настроек -->
+    <!-- 🎭 Модальное окно настроек -->
     <div id="settings-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content glass-effect">
             <div class="modal-header">
                 <h3><i class="fas fa-cog"></i> Настройки профиля</h3>
-                <button class="close-btn">
+                <button class="close-btn hover-lift">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -293,16 +303,16 @@
                 <!-- Вкладка профиля -->
                 <div id="profile-settings" class="settings-content active">
                     <div class="settings-section">
-                        <h4>Аватар</h4>
+                        <h4>🖼️ Аватар</h4>
                         <div class="avatar-section">
                             <img id="settings-avatar" src="" alt="Avatar" class="settings-avatar">
                             <input type="file" id="avatar-input" style="display: none;" accept="image/*">
-                            <button class="btn-secondary">Изменить аватар</button>
+                            <button class="btn-secondary hover-lift">✨ Изменить аватар</button>
                         </div>
                     </div>
                     
                     <div class="settings-section">
-                        <h4>Информация</h4>
+                        <h4>📝 Информация</h4>
                         <div class="form-group">
                             <label>Имя пользователя</label>
                             <input type="text" id="settings-username" placeholder="Имя пользователя">
@@ -314,7 +324,7 @@
                     </div>
                     
                     <div class="settings-section">
-                        <h4>Безопасность</h4>
+                        <h4>🔒 Безопасность</h4>
                         <div class="form-group">
                             <label>Новый пароль</label>
                             <input type="password" id="settings-password" placeholder="Оставьте пустым, чтобы не менять">
@@ -325,31 +335,31 @@
                 <!-- Вкладка тем -->
                 <div id="themes-settings" class="settings-content">
                     <div class="settings-section">
-                        <h4>Выберите тему</h4>
+                        <h4>🎨 Выберите тему</h4>
                         <div class="themes-grid">
-                            <div class="theme-card active" data-theme="business">
+                            <div class="theme-card active hover-lift" data-theme="business">
                                 <div class="theme-preview business-theme"></div>
-                                <span>Деловая</span>
+                                <span>🔥 Деловая</span>
                             </div>
-                            <div class="theme-card" data-theme="dark">
+                            <div class="theme-card hover-lift" data-theme="dark">
                                 <div class="theme-preview dark-theme"></div>
-                                <span>Темная</span>
+                                <span>🌙 Темная</span>
                             </div>
-                            <div class="theme-card" data-theme="blue">
+                            <div class="theme-card hover-lift" data-theme="blue">
                                 <div class="theme-preview blue-theme"></div>
-                                <span>Синяя</span>
+                                <span>💙 Синяя</span>
                             </div>
-                            <div class="theme-card" data-theme="green">
+                            <div class="theme-card hover-lift" data-theme="green">
                                 <div class="theme-preview green-theme"></div>
-                                <span>Зеленая</span>
+                                <span>💚 Зеленая</span>
                             </div>
-                            <div class="theme-card" data-theme="purple">
+                            <div class="theme-card hover-lift" data-theme="purple">
                                 <div class="theme-preview purple-theme"></div>
-                                <span>Фиолетовая</span>
+                                <span>💜 Фиолетовая</span>
                             </div>
-                            <div class="theme-card" data-theme="pink">
+                            <div class="theme-card hover-lift" data-theme="pink">
                                 <div class="theme-preview pink-theme"></div>
-                                <span>Розовая</span>
+                                <span>💖 Розовая</span>
                             </div>
                         </div>
                     </div>
@@ -358,42 +368,42 @@
                 <!-- Вкладка приватности -->
                 <div id="privacy-settings" class="settings-content">
                     <div class="settings-section">
-                        <h4>Приватность</h4>
+                        <h4>🔐 Приватность</h4>
                         <div class="privacy-option">
                             <label>
                                 <input type="checkbox" id="online-status"> 
-                                Показывать статус "в сети"
+                                🟢 Показывать статус "в сети"
                             </label>
                         </div>
                         <div class="privacy-option">
                             <label>
                                 <input type="checkbox" id="read-receipts"> 
-                                Отправлять уведомления о прочтении
+                                ✅ Отправлять уведомления о прочтении
                             </label>
                         </div>
                         <div class="privacy-option">
                             <label>
                                 <input type="checkbox" id="typing-indicator"> 
-                                Показывать индикатор печатания
+                                ⌨️ Показывать индикатор печатания
                             </label>
                         </div>
                     </div>
                 </div>
                 
                 <div class="settings-actions">
-                    <button class="btn-primary">Сохранить изменения</button>
-                    <button class="btn-secondary">Отмена</button>
+                    <button class="btn-primary hover-glow">💾 Сохранить изменения</button>
+                    <button class="btn-secondary hover-lift">❌ Отмена</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно поиска пользователей -->
+    <!-- 👥 Модальное окно поиска пользователей -->
     <div id="users-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content glass-effect">
             <div class="modal-header">
                 <h3><i class="fas fa-users"></i> Найти пользователей</h3>
-                <button class="close-btn">
+                <button class="close-btn hover-lift">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -409,16 +419,16 @@
                 
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Поиск пользователей..." id="user-search">
+                    <input type="text" placeholder="🔍 Поиск пользователей..." id="user-search">
                 </div>
                 
                 <!-- Создание группового чата -->
                 <div id="group-creation" class="group-creation" style="display: none;">
                     <div class="form-group">
-                        <input type="text" id="group-name" placeholder="Название группы" maxlength="50">
+                        <input type="text" id="group-name" placeholder="📝 Название группы" maxlength="50">
                     </div>
                     <div class="form-group">
-                        <textarea id="group-description" placeholder="Описание группы (необязательно)" maxlength="200"></textarea>
+                        <textarea id="group-description" placeholder="📄 Описание группы (необязательно)" maxlength="200"></textarea>
                     </div>
                     <div class="selected-users" id="selected-users"></div>
                 </div>
@@ -428,8 +438,8 @@
                 </div>
                 
                 <div class="modal-actions" id="group-actions" style="display: none;">
-                    <button class="btn-primary" id="create-group-btn">Создать группу</button>
-                    <button class="btn-secondary">Отмена</button>
+                    <button class="btn-primary hover-glow" id="create-group-btn">🚀 Создать группу</button>
+                    <button class="btn-secondary hover-lift">❌ Отмена</button>
                 </div>
             </div>
         </div>
@@ -524,37 +534,68 @@
         </div>
     </div>
 
-    <!-- Модальное окно статусов -->
+    <!-- 🎯 Модальное окно статусов -->
     <div id="status-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content glass-effect">
             <div class="modal-header">
                 <h3><i class="fas fa-circle"></i> Мой статус</h3>
-                <button class="close-btn">
+                <button class="close-btn hover-lift">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="status-options">
-                    <div class="status-option" data-status="available">
+                    <div class="status-option hover-lift" data-status="available">
                         <div class="status-indicator available"></div>
-                        <span>Доступен</span>
+                        <span>🟢 Доступен</span>
                     </div>
-                    <div class="status-option" data-status="busy">
+                    <div class="status-option hover-lift" data-status="busy">
                         <div class="status-indicator busy"></div>
-                        <span>Занят</span>
+                        <span>🟡 Занят</span>
                     </div>
-                    <div class="status-option" data-status="away">
+                    <div class="status-option hover-lift" data-status="away">
                         <div class="status-indicator away"></div>
-                        <span>Отошел</span>
+                        <span>⚫ Отошел</span>
                     </div>
-                    <div class="status-option" data-status="invisible">
+                    <div class="status-option hover-lift" data-status="invisible">
                         <div class="status-indicator invisible"></div>
-                        <span>Невидимый</span>
+                        <span>👻 Невидимый</span>
                     </div>
                 </div>
                 <div class="custom-status">
-                    <input type="text" id="custom-status-text" placeholder="Пользовательский статус..." maxlength="100">
-                    <button class="set-status-btn">Установить</button>
+                    <input type="text" id="custom-status-text" placeholder="✨ Пользовательский статус..." maxlength="100">
+                    <button class="set-status-btn hover-glow">🚀 Установить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎮 Модальное окно игр -->
+    <div id="games-modal" class="modal">
+        <div class="modal-content glass-effect">
+            <div class="modal-header">
+                <h3><i class="fas fa-gamepad"></i> Игры в чате</h3>
+                <button class="close-btn hover-lift">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="games-grid">
+                    <div class="game-card hover-lift" data-game="tic-tac-toe">
+                        <i class="fas fa-th"></i>
+                        <h4>⭕ Крестики-нолики</h4>
+                        <p>Классическая игра 3x3</p>
+                    </div>
+                    <div class="game-card hover-lift" data-game="quiz">
+                        <i class="fas fa-question-circle"></i>
+                        <h4>🧠 Викторина</h4>
+                        <p>Вопросы и ответы</p>
+                    </div>
+                    <div class="game-card hover-lift" data-game="word-game">
+                        <i class="fas fa-spell-check"></i>
+                        <h4>📝 Угадай слово</h4>
+                        <p>Словесная игра</p>
+                    </div>
                 </div>
             </div>
         </div>
