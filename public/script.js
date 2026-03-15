@@ -1615,3 +1615,361 @@ document.addEventListener('click', (e) => {
         }
     }
 });
+    // Дополнительные методы для новых функций
+    switchStickerTab(tab) {
+        document.querySelectorAll('.sticker-tab').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.stickers-grid, .gifs-grid').forEach(grid => grid.classList.remove('active'));
+        
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        document.getElementById(`${tab}-grid`).classList.add('active');
+        
+        if (tab === 'stickers') {
+            this.loadStickers();
+        } else if (tab === 'gifs') {
+            this.loadGifs();
+        }
+    }
+
+    loadStickers() {
+        const stickersGrid = document.getElementById('stickers-grid');
+        if (!stickersGrid) return;
+        
+        // Популярные эмодзи стикеры
+        const stickers = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+            '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙',
+            '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔',
+            '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+            '😔', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢',
+            '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱',
+            '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶',
+            '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱',
+            '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷'
+        ];
+        
+        stickersGrid.innerHTML = '';
+        stickers.forEach(sticker => {
+            const stickerItem = document.createElement('div');
+            stickerItem.className = 'sticker-item';
+            stickerItem.textContent = sticker;
+            stickerItem.addEventListener('click', () => {
+                this.sendStickerMessage(sticker);
+            });
+            stickersGrid.appendChild(stickerItem);
+        });
+    }
+
+    loadGifs() {
+        const gifsContainer = document.querySelector('.gifs-container');
+        if (!gifsContainer) return;
+        
+        // Заглушка для GIF - в реальном приложении здесь был бы API Giphy
+        gifsContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 20px; color: var(--text-secondary);">
+                <i class="fas fa-images" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+                GIF поиск будет доступен после интеграции с Giphy API
+            </div>
+        `;
+    }
+
+    async sendStickerMessage(sticker) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки стикера', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: sticker,
+                    type: 'sticker'
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                // Hide sticker panel
+                document.getElementById('sticker-panel').style.display = 'none';
+                this.showNotification('Стикер отправлен!', 'success');
+            } else {
+                this.showNotification('Ошибка отправки стикера', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка отправки стикера:', error);
+            this.showNotification('Ошибка отправки стикера', 'error');
+        }
+    }
+
+    selectDrawTool(tool) {
+        document.querySelectorAll('.draw-tool').forEach(btn => btn.classList.remove('active'));
+        const toolBtn = document.querySelector(`[data-tool="${tool}"]`);
+        if (toolBtn) {
+            toolBtn.classList.add('active');
+        }
+        
+        // Set drawing mode
+        this.currentDrawTool = tool;
+        const canvas = document.getElementById('draw-canvas');
+        if (canvas) {
+            canvas.style.cursor = tool === 'eraser' ? 'crosshair' : 'crosshair';
+        }
+    }
+
+    startGame(game) {
+        console.log('🔥 Запускаем игру:', game);
+        this.closeModal('games-modal');
+        
+        switch (game) {
+            case 'tic-tac-toe':
+                this.startTicTacToe();
+                break;
+            case 'quiz':
+                this.startQuiz();
+                break;
+            case 'word-game':
+                this.startWordGame();
+                break;
+            default:
+                this.showNotification('Игра пока не реализована', 'info');
+        }
+    }
+
+    startTicTacToe() {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для игры', 'error');
+            return;
+        }
+        
+        this.showNotification('🎮 Крестики-нолики запущены!', 'success');
+        // Здесь была бы логика игры
+    }
+
+    startQuiz() {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для викторины', 'error');
+            return;
+        }
+        
+        this.showNotification('🧠 Викторина запущена!', 'success');
+        // Здесь была бы логика викторины
+    }
+
+    startWordGame() {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для игры в слова', 'error');
+            return;
+        }
+        
+        this.showNotification('📝 Игра в слова запущена!', 'success');
+        // Здесь была бы логика игры в слова
+    }
+
+    // Обработка аватара
+    handleAvatarSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            this.showNotification('Выберите изображение для аватара', 'error');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            this.showNotification('Размер файла не должен превышать 5MB', 'error');
+            return;
+        }
+        
+        // Preview avatar
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const settingsAvatar = document.getElementById('settings-avatar');
+            if (settingsAvatar) {
+                settingsAvatar.src = e.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+        
+        this.selectedAvatarFile = file;
+    }
+
+    async saveSettings() {
+        console.log('🔥 Сохраняем настройки');
+        
+        const username = document.getElementById('settings-username').value.trim();
+        const password = document.getElementById('settings-password').value;
+        
+        if (!username) {
+            this.showNotification('Введите имя пользователя', 'error');
+            return;
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('username', username);
+            if (password) {
+                formData.append('password', password);
+            }
+            if (this.selectedAvatarFile) {
+                formData.append('avatar', this.selectedAvatarFile);
+            }
+            
+            const response = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                this.currentUser = { ...this.currentUser, ...data.user };
+                this.updateUserProfile();
+                this.closeModal('settings-modal');
+                this.showNotification('Настройки сохранены!', 'success');
+            } else {
+                this.showNotification('Ошибка сохранения настроек: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка сохранения настроек:', error);
+            this.showNotification('Ошибка сохранения настроек', 'error');
+        }
+    }
+
+    // Звуковые эффекты
+    playNotificationSound() {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+            audio.volume = 0.3;
+            audio.play().catch(() => {}); // Игнорируем ошибки автовоспроизведения
+        } catch (error) {
+            // Звук не критичен, игнорируем ошибки
+        }
+    }
+
+    // Улучшенные уведомления со звуком
+    showNotification(message, type = 'info') {
+        console.log(`🔥 Уведомление [${type}]:`, message);
+        
+        // Воспроизводим звук для важных уведомлений
+        if (type === 'success' || type === 'error') {
+            this.playNotificationSound();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Анимация появления
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+        
+        // Автоматическое скрытие
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 4000);
+    }
+
+    // Инициализация дополнительных обработчиков
+    initializeAdditionalFeatures() {
+        // Обработчик для панели стикеров
+        document.getElementById('sticker-btn')?.addEventListener('click', () => {
+            const panel = document.getElementById('sticker-panel');
+            if (panel) {
+                const isVisible = panel.style.display === 'block';
+                panel.style.display = isVisible ? 'none' : 'block';
+                if (!isVisible) {
+                    this.loadStickers();
+                }
+            }
+        });
+
+        // Обработчик для кнопки голосового сообщения
+        document.getElementById('voice-btn')?.addEventListener('click', () => {
+            if (this.isRecording) {
+                this.stopVoiceRecording();
+            } else {
+                this.startVoiceRecording();
+            }
+        });
+
+        // Закрытие панелей при клике вне их
+        document.addEventListener('click', (e) => {
+            const panels = ['sticker-panel', 'poll-panel', 'draw-panel'];
+            panels.forEach(panelId => {
+                const panel = document.getElementById(panelId);
+                if (panel && panel.style.display === 'block') {
+                    if (!panel.contains(e.target) && !e.target.closest(`#${panelId.replace('-panel', '-btn')}`)) {
+                        panel.style.display = 'none';
+                    }
+                }
+            });
+        });
+
+        // Инициализация темы из localStorage
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            this.selectTheme(savedTheme);
+        }
+    }
+}
+
+// Инициализация приложения
+const app = new MessengerApp();
+
+// Дополнительная инициализация после загрузки DOM
+document.addEventListener('DOMContentLoaded', () => {
+    app.initializeAdditionalFeatures();
+    
+    // Добавляем обработчики для новых элементов
+    const avatarInput = document.getElementById('avatar-input');
+    const avatarBtn = document.querySelector('.btn-secondary');
+    
+    if (avatarBtn && avatarInput) {
+        avatarBtn.addEventListener('click', () => {
+            avatarInput.click();
+        });
+    }
+    
+    console.log('🔥 Flux Messenger полностью загружен и готов к работе!');
+});
+
+// Глобальные обработчики для дополнительных функций
+document.addEventListener('click', (e) => {
+    // Handle poll creation
+    if (e.target.title === 'Создать опрос' || e.target.closest('#poll-btn')) {
+        console.log('🔥 Глобальный обработчик: создать опрос');
+        const panel = document.getElementById('poll-panel');
+        if (panel) {
+            panel.style.display = 'block';
+        }
+    }
+    
+    // Handle drawing
+    if (e.target.title === 'Совместное рисование' || e.target.closest('#draw-btn')) {
+        console.log('🔥 Глобальный обработчик: рисование');
+        const panel = document.getElementById('draw-panel');
+        if (panel) {
+            panel.style.display = 'block';
+        }
+    }
+});
