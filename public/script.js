@@ -2360,7 +2360,15 @@ class MessengerApp {
             item.style.display = shouldShow ? 'flex' : 'none';
         });
     }
-}
+
+    async startGame(gameType) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для игры', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2368,18 +2376,18 @@ class MessengerApp {
                 },
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
-                    text: `🎮 Игра: ${this.getGameName(gameType)}`,
-                    type: 'game',
-                    fileData: gameData
+                    text: `🎮 Игра: ${this.getGameName(gameType)} начата!`,
+                    type: 'text'
                 })
             });
-
+            
             const data = await response.json();
             if (data.success) {
                 this.closeModal('games-modal');
                 this.showNotification('Игра начата!', 'success');
             } else {
-                this.showNotification('Ошибка создания игры', 'error');
+                console.error('🔥 Ошибка создания игры:', data);
+                this.showNotification('Ошибка создания игры: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
             console.error('🔥 Ошибка создания игры:', error);
@@ -2395,146 +2403,141 @@ class MessengerApp {
         };
         return names[gameType] || gameType;
     }
-}
 
-// Drawing functionality
-MessengerApp.prototype.initializeDrawingCanvas = function() {
-    const canvas = document.getElementById('draw-canvas');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    let isDrawing = false;
-    let currentTool = 'pen';
-    let currentColor = '#667eea';
-    let currentSize = 3;
-    
-    // Set canvas size
-    canvas.width = 400;
-    canvas.height = 300;
-    
-    // Drawing functions
-    const startDrawing = (e) => {
-        isDrawing = true;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+    // Drawing functionality
+    initializeDrawingCanvas() {
+        const canvas = document.getElementById('draw-canvas');
+        if (!canvas) return;
         
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-    };
-    
-    const draw = (e) => {
-        if (!isDrawing) return;
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#667eea';
+        let currentSize = 3;
         
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        // Set canvas size
+        canvas.width = 400;
+        canvas.height = 300;
         
-        ctx.lineWidth = currentSize;
-        ctx.lineCap = 'round';
+        // Drawing functions
+        const startDrawing = (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        };
         
-        if (currentTool === 'pen') {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = currentColor;
-        } else if (currentTool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
+        const draw = (e) => {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineWidth = currentSize;
+            ctx.lineCap = 'round';
+            
+            if (currentTool === 'pen') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = currentColor;
+            } else if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+            }
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        };
+        
+        const stopDrawing = () => {
+            isDrawing = false;
+            ctx.beginPath();
+        };
+        
+        // Event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        // Tool controls
+        document.querySelectorAll('.draw-tool').forEach(tool => {
+            tool.addEventListener('click', (e) => {
+                document.querySelectorAll('.draw-tool').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                currentTool = e.target.dataset.tool;
+            });
+        });
+        
+        document.getElementById('draw-color')?.addEventListener('change', (e) => {
+            currentColor = e.target.value;
+        });
+        
+        document.getElementById('draw-size')?.addEventListener('input', (e) => {
+            currentSize = e.target.value;
+        });
+        
+        document.querySelector('.clear-canvas')?.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+        
+        document.querySelector('.send-drawing')?.addEventListener('click', () => {
+            this.sendDrawing(canvas);
+        });
+        
+        document.querySelector('.cancel-drawing')?.addEventListener('click', () => {
+            document.getElementById('draw-panel').style.display = 'none';
+        });
+    }
+
+    async sendDrawing(canvas) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки рисунка', 'error');
+            return;
         }
         
-        ctx.lineTo(x, y);
-        ctx.stroke();
-    };
-    
-    const stopDrawing = () => {
-        isDrawing = false;
-        ctx.beginPath();
-    };
-    
-    // Event listeners
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-    
-    // Tool controls
-    document.querySelectorAll('.draw-tool').forEach(tool => {
-        tool.addEventListener('click', (e) => {
-            document.querySelectorAll('.draw-tool').forEach(t => t.classList.remove('active'));
-            e.target.classList.add('active');
-            currentTool = e.target.dataset.tool;
-        });
-    });
-    
-    document.getElementById('draw-color')?.addEventListener('change', (e) => {
-        currentColor = e.target.value;
-    });
-    
-    document.getElementById('draw-size')?.addEventListener('input', (e) => {
-        currentSize = e.target.value;
-    });
-    
-    document.querySelector('.clear-canvas')?.addEventListener('click', () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
-    
-    document.querySelector('.send-drawing')?.addEventListener('click', () => {
-        this.sendDrawing(canvas);
-    });
-    
-    document.querySelector('.cancel-drawing')?.addEventListener('click', () => {
-        document.getElementById('draw-panel').style.display = 'none';
-    });
-};
-
-MessengerApp.prototype.sendDrawing = async function(canvas) {
-    if (!this.currentChat) {
-        this.showNotification('Выберите чат для отправки рисунка', 'error');
-        return;
-    }
-    
-    try {
-        // Convert canvas to blob
-        canvas.toBlob(async (blob) => {
-            const formData = new FormData();
-            formData.append('file', blob, 'drawing.png');
-            formData.append('chatId', this.currentChat.id);
-            
-            const uploadResponse = await fetch('/api/upload', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: formData
-            });
-            
-            const uploadData = await uploadResponse.json();
-            
-            if (uploadData.success) {
-                await this.sendMessageWithFile({
-                    ...uploadData.file,
-                    originalName: 'Рисунок'
+        try {
+            // Convert canvas to blob
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'drawing.png');
+                formData.append('chatId', this.currentChat.id);
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
                 });
                 
-                // Clear canvas and close panel
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                document.getElementById('draw-panel').style.display = 'none';
+                const uploadData = await uploadResponse.json();
                 
-                this.showNotification('Рисунок отправлен!', 'success');
-            } else {
-                this.showNotification('Ошибка отправки рисунка', 'error');
-            }
-        }, 'image/png');
-        
-    } catch (error) {
-        console.error('🔥 Ошибка отправки рисунка:', error);
-        this.showNotification('Ошибка отправки рисунка', 'error');
+                if (uploadData.success) {
+                    await this.sendMessageWithFile({
+                        ...uploadData.file,
+                        originalName: 'Рисунок'
+                    });
+                    
+                    // Clear canvas and close panel
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    document.getElementById('draw-panel').style.display = 'none';
+                    
+                    this.showNotification('Рисунок отправлен!', 'success');
+                } else {
+                    this.showNotification('Ошибка отправки рисунка', 'error');
+                }
+            }, 'image/png');
+            
+        } catch (error) {
+            console.error('🔥 Ошибка отправки рисунка:', error);
+            this.showNotification('Ошибка отправки рисунка', 'error');
+        }
     }
-};
-
-// Инициализация приложения
-const app = new MessengerApp();
-
-console.log('🔥 Flux Messenger загружен и готов к работе!');
+}
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -2610,102 +2613,6 @@ const callNotificationCSS = `
 const style = document.createElement('style');
 style.textContent = callNotificationCSS;
 document.head.appendChild(style);
-    // Sticker functionality
-    loadStickers() {
-        const stickersGrid = document.getElementById('stickers-grid');
-        if (!stickersGrid) return;
-        
-        const stickers = ['😀', '😂', '😍', '🤔', '😎', '🔥', '💯', '👍', '❤️', '🎉', '🚀', '⭐'];
-        
-        stickersGrid.innerHTML = '';
-        stickers.forEach(sticker => {
-            const stickerItem = document.createElement('div');
-            stickerItem.className = 'sticker-item';
-            stickerItem.textContent = sticker;
-            stickerItem.style.cssText = `
-                font-size: 2rem;
-                padding: 10px;
-                cursor: pointer;
-                border-radius: 8px;
-                transition: var(--transition-smooth);
-                text-align: center;
-            `;
-            
-            stickerItem.addEventListener('click', () => {
-                this.sendStickerMessage(sticker);
-            });
-            
-            stickersGrid.appendChild(stickerItem);
-        });
-    }
-
-    async sendStickerMessage(sticker) {
-        if (!this.currentChat) {
-            this.showNotification('Выберите чат для отправки стикера', 'error');
-            return;
-        }
-        
-        try {
-            const response = await fetch('/api/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    chatId: this.currentChat.id,
-                    text: sticker,
-                    type: 'text'
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                const stickerPanel = document.getElementById('sticker-panel');
-                if (stickerPanel) stickerPanel.style.display = 'none';
-            } else {
-                this.showNotification('Ошибка отправки стикера', 'error');
-            }
-        } catch (error) {
-            console.error('🔥 Ошибка отправки стикера:', error);
-            this.showNotification('Ошибка отправки стикера', 'error');
-        }
-    }
-
-    toggleStickerPanel() {
-        const panel = document.getElementById('sticker-panel');
-        if (!panel) return;
-        
-        if (panel.style.display === 'none' || !panel.style.display) {
-            panel.style.display = 'block';
-            this.loadStickers();
-        } else {
-            panel.style.display = 'none';
-        }
-    }
-
-    togglePollPanel() {
-        const panel = document.getElementById('poll-panel');
-        if (!panel) return;
-        
-        if (panel.style.display === 'none' || !panel.style.display) {
-            panel.style.display = 'block';
-        } else {
-            panel.style.display = 'none';
-        }
-    }
-
-    toggleDrawPanel() {
-        const panel = document.getElementById('draw-panel');
-        if (!panel) return;
-        
-        if (panel.style.display === 'none' || !panel.style.display) {
-            panel.style.display = 'block';
-        } else {
-            panel.style.display = 'none';
-        }
-    }
     // Missing modal functions
     openStatusModal() {
         const modal = document.getElementById('status-modal');
