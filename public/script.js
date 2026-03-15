@@ -544,16 +544,24 @@ class MessengerApp {
     }
 
     async loadMessages(chatId) {
+        console.log('🔥 Загружаем сообщения для чата:', chatId);
         try {
             const response = await fetch(`/api/chats/${chatId}/messages`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
+            
+            console.log('🔥 Ответ сервера сообщений:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные сообщений:', data);
             
             if (data.success) {
                 this.renderMessages(data.messages);
+            } else {
+                console.error('🔥 Ошибка загрузки сообщений:', data.message);
+                this.showNotification('Ошибка загрузки сообщений: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при загрузке сообщений:', error);
             this.showNotification('Ошибка загрузки сообщений', 'error');
         }
     }
@@ -745,6 +753,17 @@ class MessengerApp {
                 visibility: visible !important;
                 opacity: 1 !important;
             `;
+            
+            // Делаем содержимое модального окна кликабельным
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.cssText = `
+                    pointer-events: auto !important;
+                    position: relative !important;
+                    z-index: 100000 !important;
+                `;
+            }
+            
             console.log('🔥 Модальное окно пользователей открыто');
             this.loadUsers();
         } else {
@@ -771,6 +790,17 @@ class MessengerApp {
                 visibility: visible !important;
                 opacity: 1 !important;
             `;
+            
+            // Делаем содержимое модального окна кликабельным
+            const modalContent = modal.querySelector('.modal-content');
+            if (modalContent) {
+                modalContent.style.cssText = `
+                    pointer-events: auto !important;
+                    position: relative !important;
+                    z-index: 100000 !important;
+                `;
+            }
+            
             console.log('🔥 Модальное окно настроек открыто');
             this.loadUserSettings();
         } else {

@@ -794,21 +794,21 @@ app.get('/api/chats/:chatId/messages', authenticateToken, async (req, res) => {
                 read: msg.isRead
             }));
             
-            res.json(formattedMessages);
+            res.json({ success: true, messages: formattedMessages });
         } else {
             // Используем Map (fallback)
             const chat = chats.get(chatId);
             
             if (!chat || !chat.participants.includes(req.userId)) {
-                return res.status(403).json({ error: 'Доступ запрещен' });
+                return res.status(403).json({ success: false, message: 'Доступ запрещен' });
             }
             
             const chatMessages = messages.get(chatId) || [];
-            res.json(chatMessages);
+            res.json({ success: true, messages: chatMessages });
         }
     } catch (error) {
         console.error('Ошибка получения сообщений:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
 
