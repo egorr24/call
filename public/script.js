@@ -24,6 +24,20 @@ class AwesomeMessenger {
     init() {
         this.setupEventListeners();
         
+        // Добавляем глобальное делегирование событий для кнопок авторизации
+        document.addEventListener('click', (e) => {
+            // Обработка кнопок авторизации
+            if (e.target.matches('#login-form .auth-btn') || e.target.closest('#login-form .auth-btn')) {
+                e.preventDefault();
+                console.log('🔥 ГЛОБАЛЬНЫЙ КЛИК ПО КНОПКЕ ВХОДА');
+                this.login();
+            } else if (e.target.matches('#register-form .auth-btn') || e.target.closest('#register-form .auth-btn')) {
+                e.preventDefault();
+                console.log('🔥 ГЛОБАЛЬНЫЙ КЛИК ПО КНОПКЕ РЕГИСТРАЦИИ');
+                this.register();
+            }
+        });
+        
         if (this.token) {
             this.verifyToken();
         } else {
@@ -37,32 +51,13 @@ class AwesomeMessenger {
             btn.addEventListener('click', (e) => {
                 const tab = e.target.dataset.tab;
                 this.switchAuthTab(tab);
+                // После переключения вкладки добавляем обработчики
+                setTimeout(() => this.setupAuthHandlers(), 100);
             });
         });
 
-        // ИМБОВЫЕ обработчики для форм авторизации
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        
-        if (loginForm) {
-            const loginBtn = loginForm.querySelector('.auth-btn');
-            if (loginBtn) {
-                loginBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    this.login();
-                });
-            }
-        }
-        
-        if (registerForm) {
-            const registerBtn = registerForm.querySelector('.auth-btn');
-            if (registerBtn) {
-                registerBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    this.register();
-                });
-            }
-        }
+        // Инициализируем обработчики авторизации сразу
+        this.setupAuthHandlers();
 
         // Enter для отправки сообщений (только на десктопе)
         const messageInput = document.getElementById('message-input');
@@ -310,12 +305,90 @@ class AwesomeMessenger {
         document.querySelector('.chat-area').classList.remove('active');
     }
 
+    setupAuthHandlers() {
+        // ИМБОВЫЕ обработчики для форм авторизации
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        
+        console.log('🔥 НАСТРОЙКА ОБРАБОТЧИКОВ АВТОРИЗАЦИИ');
+        console.log('Login form:', loginForm);
+        console.log('Register form:', registerForm);
+        
+        if (loginForm) {
+            const loginBtn = loginForm.querySelector('.auth-btn');
+            console.log('Login button:', loginBtn);
+            if (loginBtn) {
+                // Убираем старые обработчики
+                loginBtn.replaceWith(loginBtn.cloneNode(true));
+                const newLoginBtn = loginForm.querySelector('.auth-btn');
+                
+                newLoginBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🔥 КЛИК ПО КНОПКЕ ВХОДА');
+                    this.login();
+                });
+                
+                // Также добавляем обработчик Enter для формы входа
+                const emailInput = loginForm.querySelector('#login-email');
+                const passwordInput = loginForm.querySelector('#login-password');
+                
+                [emailInput, passwordInput].forEach(input => {
+                    if (input) {
+                        input.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                console.log('🔥 ENTER В ФОРМЕ ВХОДА');
+                                this.login();
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        
+        if (registerForm) {
+            const registerBtn = registerForm.querySelector('.auth-btn');
+            console.log('Register button:', registerBtn);
+            if (registerBtn) {
+                // Убираем старые обработчики
+                registerBtn.replaceWith(registerBtn.cloneNode(true));
+                const newRegisterBtn = registerForm.querySelector('.auth-btn');
+                
+                newRegisterBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('🔥 КЛИК ПО КНОПКЕ РЕГИСТРАЦИИ');
+                    this.register();
+                });
+                
+                // Также добавляем обработчик Enter для формы регистрации
+                const usernameInput = registerForm.querySelector('#register-username');
+                const emailInput = registerForm.querySelector('#register-email');
+                const passwordInput = registerForm.querySelector('#register-password');
+                
+                [usernameInput, emailInput, passwordInput].forEach(input => {
+                    if (input) {
+                        input.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                console.log('🔥 ENTER В ФОРМЕ РЕГИСТРАЦИИ');
+                                this.register();
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    }
+
     switchAuthTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.querySelectorAll('.auth-form').forEach(form => form.classList.remove('active'));
         
         document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
         document.getElementById(`${tab}-form`).classList.add('active');
+        
+        // После переключения вкладки обновляем обработчики
+        setTimeout(() => this.setupAuthHandlers(), 50);
     }
 
     async verifyToken() {
@@ -345,9 +418,13 @@ class AwesomeMessenger {
     }
 
     async register() {
-        const username = document.getElementById('register-username').value;
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
+        console.log('🔥 МЕТОД REGISTER ВЫЗВАН');
+        
+        const username = document.getElementById('register-username')?.value;
+        const email = document.getElementById('register-email')?.value;
+        const password = document.getElementById('register-password')?.value;
+
+        console.log('Данные регистрации:', { username, email, password: password ? '***' : 'empty' });
 
         if (!username || !email || !password) {
             this.showError('Заполните все поля');
@@ -367,13 +444,14 @@ class AwesomeMessenger {
             return;
         }
 
-        const submitBtn = document.querySelector('#register-form button[type="submit"]');
-        if (!submitBtn.dataset.originalText) {
+        const submitBtn = document.querySelector('#register-form .auth-btn');
+        if (submitBtn && !submitBtn.dataset.originalText) {
             submitBtn.dataset.originalText = submitBtn.textContent;
         }
         this.setLoading(submitBtn, true);
 
         try {
+            console.log('🔥 ОТПРАВКА ЗАПРОСА РЕГИСТРАЦИИ');
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: {
@@ -383,6 +461,7 @@ class AwesomeMessenger {
             });
 
             const data = await response.json();
+            console.log('Ответ сервера:', data);
 
             if (data.success) {
                 this.token = data.token;
@@ -390,7 +469,9 @@ class AwesomeMessenger {
                 localStorage.setItem('messenger_token', this.token);
                 
                 // Показываем успешную анимацию
-                submitBtn.classList.add('success-animation');
+                if (submitBtn) {
+                    submitBtn.classList.add('success-animation');
+                }
                 this.showNotification('Регистрация успешна! Добро пожаловать!');
                 
                 // Небольшая задержка для анимации
@@ -404,26 +485,33 @@ class AwesomeMessenger {
             console.error('Ошибка регистрации:', error);
             this.showError('Ошибка сервера. Проверьте подключение к интернету.');
         } finally {
-            this.setLoading(submitBtn, false);
+            if (submitBtn) {
+                this.setLoading(submitBtn, false);
+            }
         }
     }
 
     async login() {
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
+        console.log('🔥 МЕТОД LOGIN ВЫЗВАН');
+        
+        const email = document.getElementById('login-email')?.value;
+        const password = document.getElementById('login-password')?.value;
+
+        console.log('Данные входа:', { email, password: password ? '***' : 'empty' });
 
         if (!email || !password) {
             this.showError('Заполните все поля');
             return;
         }
 
-        const submitBtn = document.querySelector('#login-form button[type="submit"]');
-        if (!submitBtn.dataset.originalText) {
+        const submitBtn = document.querySelector('#login-form .auth-btn');
+        if (submitBtn && !submitBtn.dataset.originalText) {
             submitBtn.dataset.originalText = submitBtn.textContent;
         }
         this.setLoading(submitBtn, true);
 
         try {
+            console.log('🔥 ОТПРАВКА ЗАПРОСА ВХОДА');
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
@@ -433,6 +521,7 @@ class AwesomeMessenger {
             });
 
             const data = await response.json();
+            console.log('Ответ сервера:', data);
 
             if (data.success) {
                 this.token = data.token;
@@ -440,7 +529,9 @@ class AwesomeMessenger {
                 localStorage.setItem('messenger_token', this.token);
                 
                 // Показываем успешную анимацию
-                submitBtn.classList.add('success-animation');
+                if (submitBtn) {
+                    submitBtn.classList.add('success-animation');
+                }
                 this.showNotification('Вход выполнен успешно!');
                 
                 // Небольшая задержка для анимации
@@ -454,7 +545,9 @@ class AwesomeMessenger {
             console.error('Ошибка входа:', error);
             this.showError('Ошибка сервера. Проверьте подключение к интернету.');
         } finally {
-            this.setLoading(submitBtn, false);
+            if (submitBtn) {
+                this.setLoading(submitBtn, false);
+            }
         }
     }
 
