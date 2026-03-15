@@ -1715,6 +1715,48 @@ body {
     transform: translateY(0);
 }
 
+/* Пустой список чатов */
+.empty-chats {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #666;
+}
+
+.empty-chats .empty-icon {
+    font-size: 48px;
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+.empty-chats h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.empty-chats p {
+    margin: 0 0 20px 0;
+    color: #666;
+}
+
+.empty-chats .btn-primary {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: transform 0.2s;
+}
+
+.empty-chats .btn-primary:hover {
+    transform: translateY(-2px);
+}
+
 @keyframes notificationSlide {
     to {
         opacity: 1;

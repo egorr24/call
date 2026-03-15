@@ -44,6 +44,8 @@ class MessengerApp {
     handleGlobalClick(e) {
         const target = e.target.closest('button') || e.target;
         
+        console.log('🔥 Клик по элементу:', target, 'Классы:', target.className, 'Title:', target.title);
+        
         // Auth buttons
         if (target.classList.contains('tab-btn')) {
             this.switchAuthTab(target.dataset.tab);
@@ -58,14 +60,29 @@ class MessengerApp {
             }
         }
         // Header buttons
-        else if (target.title === 'Статус') {
+        else if (target.title === 'Статус' || target.classList.contains('status-btn')) {
+            console.log('🔥 Открываем статус');
             this.openStatusModal();
-        } else if (target.title === 'Найти пользователей') {
+        } else if (target.title === 'Найти пользователей' || target.classList.contains('users-btn')) {
+            console.log('🔥 Открываем поиск пользователей');
             this.openUsersModal();
-        } else if (target.title === 'Настройки') {
+        } else if (target.title === 'Настройки' || target.classList.contains('settings-btn')) {
+            console.log('🔥 Открываем настройки');
             this.openSettingsModal();
-        } else if (target.title === 'Выйти') {
+        } else if (target.title === 'Выйти' || target.classList.contains('logout-btn')) {
+            console.log('🔥 Выходим');
             this.logout();
+        }
+        // Chat actions
+        else if (target.title === 'Игры' || target.classList.contains('games-btn')) {
+            console.log('🔥 Открываем игры');
+            this.openGamesModal();
+        } else if (target.title === 'Видеозвонок' || target.classList.contains('video-call-btn')) {
+            console.log('🔥 Видеозвонок');
+            this.startVideoCall();
+        } else if (target.title === 'Аудиозвонок' || target.classList.contains('audio-call-btn')) {
+            console.log('🔥 Аудиозвонок');
+            this.startAudioCall();
         }
         // Settings tabs
         else if (target.classList.contains('settings-tab')) {
@@ -269,6 +286,8 @@ class MessengerApp {
         
         if (authScreen) authScreen.classList.remove('active');
         if (messengerScreen) messengerScreen.classList.add('active');
+        
+        this.updateUserProfile();
         this.loadChats();
     }
 
@@ -334,16 +353,29 @@ class MessengerApp {
         }, 3000);
     }
     async loadChats() {
+        console.log('🔥 Загружаем чаты...');
         try {
             const response = await fetch('/api/chats', {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
+            
+            console.log('🔥 Ответ сервера чатов:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные чатов:', data);
             
             if (data.success) {
-                this.renderChatList(data.chats);
+                if (data.chats && data.chats.length > 0) {
+                    this.renderChatList(data.chats);
+                } else {
+                    console.log('🔥 Чатов нет, показываем пустой список');
+                    this.renderEmptyChatList();
+                }
+            } else {
+                console.error('🔥 Ошибка загрузки чатов:', data.message);
+                this.showNotification('Ошибка загрузки чатов: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при загрузке чатов:', error);
             this.showNotification('Ошибка загрузки чатов', 'error');
         }
     }
@@ -355,6 +387,7 @@ class MessengerApp {
             return;
         }
         
+        console.log('🔥 Отображаем чаты:', chats.length);
         chatList.innerHTML = '';
         
         chats.forEach(chat => {
@@ -383,6 +416,27 @@ class MessengerApp {
             
             chatList.appendChild(chatItem);
         });
+    }
+
+    renderEmptyChatList() {
+        const chatList = document.getElementById('chat-list');
+        if (!chatList) {
+            console.warn('🔥 Элемент chat-list не найден');
+            return;
+        }
+        
+        chatList.innerHTML = `
+            <div class="empty-chats">
+                <div class="empty-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Нет чатов</h3>
+                <p>Найдите пользователей и начните общение!</p>
+                <button class="btn-primary" onclick="app.openUsersModal()">
+                    <i class="fas fa-user-plus"></i> Найти пользователей
+                </button>
+            </div>
+        `;
     }
 
     selectChat(chat) {
@@ -554,21 +608,66 @@ class MessengerApp {
 
     // Modal functions
     openStatusModal() {
-        document.getElementById('status-modal').style.display = 'flex';
+        const modal = document.getElementById('status-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        } else {
+            console.warn('🔥 Модальное окно статуса не найдено');
+        }
     }
 
     openUsersModal() {
-        document.getElementById('users-modal').style.display = 'flex';
-        this.loadUsers();
+        const modal = document.getElementById('users-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.loadUsers();
+        } else {
+            console.warn('🔥 Модальное окно пользователей не найдено');
+        }
     }
 
     openSettingsModal() {
-        document.getElementById('settings-modal').style.display = 'flex';
-        this.loadUserSettings();
+        const modal = document.getElementById('settings-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.loadUserSettings();
+        } else {
+            console.warn('🔥 Модальное окно настроек не найдено');
+        }
+    }
+
+    openGamesModal() {
+        const modal = document.getElementById('games-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+        } else {
+            console.warn('🔥 Модальное окно игр не найдено');
+        }
+    }
+
+    startVideoCall() {
+        if (this.currentChat) {
+            this.showNotification('Запуск видеозвонка...', 'info');
+            // Video call logic would go here
+        } else {
+            this.showNotification('Выберите чат для звонка', 'error');
+        }
+    }
+
+    startAudioCall() {
+        if (this.currentChat) {
+            this.showNotification('Запуск аудиозвонка...', 'info');
+            // Audio call logic would go here
+        } else {
+            this.showNotification('Выберите чат для звонка', 'error');
+        }
     }
 
     closeModal(modalId) {
-        document.getElementById(modalId).style.display = 'none';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 
     // Utility functions
@@ -793,6 +892,26 @@ class MessengerApp {
             document.getElementById('settings-email').value = this.currentUser.email;
             document.getElementById('settings-avatar').src = this.currentUser.avatar || '/default-avatar.png';
         }
+    }
+
+    updateUserProfile() {
+        console.log('🔥 Обновляем профиль пользователя:', this.currentUser);
+        
+        if (!this.currentUser) return;
+        
+        const userAvatar = document.getElementById('user-avatar');
+        const userName = document.getElementById('user-name');
+        
+        if (userAvatar) {
+            userAvatar.src = this.currentUser.avatar || '/default-avatar.png';
+            userAvatar.alt = this.currentUser.username;
+        }
+        
+        if (userName) {
+            userName.textContent = this.currentUser.username;
+        }
+        
+        console.log('🔥 Профиль обновлен');
     }
 
     // Additional UI handlers
