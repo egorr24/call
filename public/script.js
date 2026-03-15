@@ -33,32 +33,87 @@ class MessengerApp {
     }
 
     handleGlobalClick(e) {
-        const target = e.target.closest('button') || e.target.closest('[data-action]') || e.target;
-        
-        console.log('🔥 Обработка клика:', {
-            tagName: target.tagName,
-            className: target.className,
-            id: target.id,
-            title: target.title,
-            textContent: target.textContent?.substring(0, 50)
-        });
-        
-        // Auth buttons
-        if (target.classList.contains('tab-btn')) {
-            console.log('🔥 Клик по tab-btn:', target.dataset.tab);
-            this.switchAuthTab(target.dataset.tab);
-        } else if (target.classList.contains('auth-btn')) {
-            console.log('🔥 Клик по auth-btn');
-            const form = target.closest('.auth-form');
-            if (form && form.id === 'login-form') {
-                console.log('🔥 Вызываем handleLogin');
-                this.handleLogin();
-            } else if (form && form.id === 'register-form') {
-                console.log('🔥 Вызываем handleRegister');
-                this.handleRegister();
+            const target = e.target.closest('button') || e.target.closest('[data-action]') || e.target;
+
+            console.log('🔥 Обработка клика:', {
+                tagName: target.tagName,
+                className: target.className,
+                id: target.id,
+                title: target.title,
+                textContent: target.textContent?.substring(0, 50)
+            });
+
+            // Auth buttons
+            if (target.classList.contains('tab-btn')) {
+                console.log('🔥 Клик по tab-btn:', target.dataset.tab);
+                this.switchAuthTab(target.dataset.tab);
+            } else if (target.classList.contains('auth-btn')) {
+                console.log('🔥 Клик по auth-btn');
+                const form = target.closest('.auth-form');
+                if (form && form.id === 'login-form') {
+                    console.log('🔥 Вызываем handleLogin');
+                    this.handleLogin();
+                } else if (form && form.id === 'register-form') {
+                    console.log('🔥 Вызываем handleRegister');
+                    this.handleRegister();
+                }
+            }
+
+            // Main interface buttons
+            else if (target.classList.contains('send-btn')) {
+                console.log('🔥 Клик по send-btn');
+                this.sendMessage();
+            }
+            else if (target.id === 'voice-btn' || target.classList.contains('voice-btn')) {
+                console.log('🔥 Клик по voice-btn');
+                this.toggleVoiceRecording();
+            }
+            else if (target.id === 'sticker-btn' || target.classList.contains('sticker-btn')) {
+                console.log('🔥 Клик по sticker-btn');
+                this.toggleStickerPanel();
+            }
+            else if (target.id === 'poll-btn' || target.classList.contains('poll-btn')) {
+                console.log('🔥 Клик по poll-btn');
+                this.showPollModal();
+            }
+            else if (target.title === 'Прикрепить файл') {
+                console.log('🔥 Клик по attach file');
+                this.openFileDialog();
+            }
+            else if (target.title === 'Отправить фото') {
+                console.log('🔥 Клик по camera');
+                this.openCameraDialog();
+            }
+            else if (target.title === 'Видеозвонок') {
+                console.log('🔥 Клик по video call');
+                this.startVideoCall();
+            }
+            else if (target.title === 'Аудиозвонок') {
+                console.log('🔥 Клик по audio call');
+                this.startAudioCall();
+            }
+            else if (target.title === 'Игры') {
+                console.log('🔥 Клик по games');
+                this.showGamesModal();
+            }
+            else if (target.title === 'Настройки') {
+                console.log('🔥 Клик по settings');
+                this.showSettings();
+            }
+            else if (target.title === 'Найти пользователей') {
+                console.log('🔥 Клик по find users');
+                this.showUserSearch();
+            }
+            else if (target.title === 'Выйти') {
+                console.log('🔥 Клик по logout');
+                this.logout();
+            }
+            else if (target.title === 'Статус') {
+                console.log('🔥 Клик по status');
+                this.toggleStatus();
             }
         }
-    }
+
 
     handleEnterKey(e) {
         if (e.target.id === 'message-input') {
@@ -413,8 +468,157 @@ class MessengerApp {
     }
 
     sendMessage() {
-        // Placeholder for message sending
-        console.log('🔥 Отправка сообщения');
+        const messageInput = document.getElementById('message-input');
+        if (!messageInput) return;
+
+        const text = messageInput.value.trim();
+        if (!text) return;
+
+        console.log('🔥 Отправляем сообщение:', text);
+
+        if (this.socket && this.currentChat) {
+            this.socket.emit('send-message', {
+                chatId: this.currentChat.id,
+                text: text,
+                type: 'text'
+            });
+
+            messageInput.value = '';
+            this.showNotification('Сообщение отправлено', 'success');
+        } else {
+            this.showNotification('Выберите чат для отправки сообщения', 'error');
+        }
+    }
+
+    // === МЕТОДЫ ДЛЯ ОСНОВНОГО ИНТЕРФЕЙСА ===
+
+    toggleVoiceRecording() {
+        console.log('🔥 Переключение записи голоса');
+        if (this.isRecording) {
+            this.stopVoiceRecording();
+        } else {
+            this.startVoiceRecording();
+        }
+    }
+
+    startVoiceRecording() {
+        console.log('🔥 Начинаем запись голоса');
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                this.mediaRecorder = new MediaRecorder(stream);
+                this.recordedChunks = [];
+
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        this.recordedChunks.push(event.data);
+                    }
+                };
+
+                this.mediaRecorder.onstop = () => {
+                    const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
+                    this.sendVoiceMessage(blob);
+                };
+
+                this.mediaRecorder.start();
+                this.isRecording = true;
+
+                const voiceBtn = document.getElementById('voice-btn');
+                if (voiceBtn) {
+                    voiceBtn.classList.add('recording');
+                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                }
+
+                this.showNotification('Запись голосового сообщения...', 'info');
+            })
+            .catch(error => {
+                console.error('🔥 Ошибка доступа к микрофону:', error);
+                this.showNotification('Ошибка доступа к микрофону', 'error');
+            });
+    }
+
+    stopVoiceRecording() {
+        console.log('🔥 Останавливаем запись голоса');
+        if (this.mediaRecorder && this.isRecording) {
+            this.mediaRecorder.stop();
+            this.isRecording = false;
+
+            const voiceBtn = document.getElementById('voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        }
+    }
+
+    sendVoiceMessage(blob) {
+        console.log('🔥 Отправляем голосовое сообщение');
+        // Здесь будет логика отправки голосового сообщения
+        this.showNotification('Голосовое сообщение записано', 'success');
+    }
+
+    toggleStickerPanel() {
+        console.log('🔥 Переключение панели стикеров');
+        this.showNotification('Панель стикеров и GIF', 'info');
+    }
+
+    showPollModal() {
+        console.log('🔥 Показываем модал опроса');
+        if (this.currentChat && this.currentChat.type === 'group') {
+            this.showNotification('Создание опроса для группы', 'info');
+        } else {
+            this.showNotification('Опросы доступны только в групповых чатах', 'error');
+        }
+    }
+
+    openFileDialog() {
+        console.log('🔥 Открываем диалог выбора файла');
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    openCameraDialog() {
+        console.log('🔥 Открываем камеру');
+        this.showNotification('Функция камеры', 'info');
+    }
+
+    startVideoCall() {
+        console.log('🔥 Начинаем видеозвонок');
+        if (this.currentChat) {
+            this.showNotification('Начинаем видеозвонок...', 'info');
+        } else {
+            this.showNotification('Выберите чат для звонка', 'error');
+        }
+    }
+
+    startAudioCall() {
+        console.log('🔥 Начинаем аудиозвонок');
+        if (this.currentChat) {
+            this.showNotification('Начинаем аудиозвонок...', 'info');
+        } else {
+            this.showNotification('Выберите чат для звонка', 'error');
+        }
+    }
+
+    showGamesModal() {
+        console.log('🔥 Показываем модал игр');
+        this.showNotification('Игры и развлечения', 'info');
+    }
+
+    showSettings() {
+        console.log('🔥 Показываем настройки');
+        this.showNotification('Настройки приложения', 'info');
+    }
+
+    showUserSearch() {
+        console.log('🔥 Показываем поиск пользователей');
+        this.showNotification('Поиск новых пользователей', 'info');
+    }
+
+    toggleStatus() {
+        console.log('🔥 Переключение статуса');
+        this.showNotification('Изменение статуса', 'info');
     }
 }
 

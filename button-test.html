@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { margin: 5px; padding: 10px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; height: 200px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>Тест кнопок мессенджера</h1>
+    
+    <div class="test-section">
+        <h3>Кнопки основного интерфейса:</h3>
+        <button class="send-btn">Отправить сообщение</button>
+        <button id="voice-btn">Голосовое сообщение</button>
+        <button id="sticker-btn">Стикеры</button>
+        <button title="Настройки">Настройки</button>
+        <button title="Выйти">Выйти</button>
+        <button title="Видеозвонок">Видеозвонок</button>
+        <button title="Аудиозвонок">Аудиозвонок</button>
+    </div>
+    
+    <div class="log" id="log">
+        <div>Лог событий:</div>
+    </div>
+    
+    <script>
+        // Простая версия класса для тестирования
+        class TestMessengerApp {
+            constructor() {
+                this.setupEventListeners();
+                this.log('Тестовое приложение инициализировано');
+            }
+            
+            log(message) {
+                const logDiv = document.getElementById('log');
+                const div = document.createElement('div');
+                div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+                logDiv.appendChild(div);
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('click', (e) => {
+                    this.handleGlobalClick(e);
+                });
+            }
+            
+            handleGlobalClick(e) {
+                const target = e.target.closest('button') || e.target;
+                
+                if (target.classList.contains('send-btn')) {
+                    this.log('✅ Кнопка отправки сообщения работает!');
+                    this.sendMessage();
+                }
+                else if (target.id === 'voice-btn') {
+                    this.log('✅ Кнопка голосового сообщения работает!');
+                    this.toggleVoiceRecording();
+                }
+                else if (target.id === 'sticker-btn') {
+                    this.log('✅ Кнопка стикеров работает!');
+                    this.toggleStickerPanel();
+                }
+                else if (target.title === 'Настройки') {
+                    this.log('✅ Кнопка настроек работает!');
+                    this.showSettings();
+                }
+                else if (target.title === 'Выйти') {
+                    this.log('✅ Кнопка выхода работает!');
+                    this.logout();
+                }
+                else if (target.title === 'Видеозвонок') {
+                    this.log('✅ Кнопка видеозвонка работает!');
+                    this.startVideoCall();
+                }
+                else if (target.title === 'Аудиозвонок') {
+                    this.log('✅ Кнопка аудиозвонка работает!');
+                    this.startAudioCall();
+                }
+            }
+            
+            sendMessage() { this.log('Метод sendMessage вызван'); }
+            toggleVoiceRecording() { this.log('Метод toggleVoiceRecording вызван'); }
+            toggleStickerPanel() { this.log('Метод toggleStickerPanel вызван'); }
+            showSettings() { this.log('Метод showSettings вызван'); }
+            logout() { this.log('Метод logout вызван'); }
+            startVideoCall() { this.log('Метод startVideoCall вызван'); }
+            startAudioCall() { this.log('Метод startAudioCall вызван'); }
+        }
+        
+        new TestMessengerApp();
+    </script>
+</body>
+</html>
