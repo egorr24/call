@@ -386,6 +386,10 @@ class MessengerApp {
         this.socket.on('user-status', (data) => {
             this.updateUserStatus(data.userId, data.status);
         });
+
+        this.socket.on('game-updated', (data) => {
+            this.handleGameUpdate(data);
+        });
     }
 
     logout() {
@@ -577,7 +581,8 @@ class MessengerApp {
             fileContent = `
                 <div class="message-file">
                     <img src="${message.fileData.url}" alt="GIF" class="message-gif" loading="lazy" 
-                         style="max-width: 300px; max-height: 300px; border-radius: 12px; cursor: pointer;">
+                         style="max-width: 300px; max-height: 300px; border-radius: 12px; cursor: pointer;"
+                         onclick="app.openMediaViewer('${message.fileData.url}', 'image')">
                 </div>
             `;
         }
@@ -774,10 +779,12 @@ class MessengerApp {
     }
 
     async makeGameMove(messageId, gameType, move) {
-        if (!this.socket) {
+        if (!this.socket || !this.currentChat) {
             this.showNotification('Нет соединения с сервером', 'error');
             return;
         }
+        
+        console.log('🎮 Делаем ход в игре:', { messageId, gameType, move });
         
         this.socket.emit('game-move', {
             messageId: messageId,
@@ -785,6 +792,19 @@ class MessengerApp {
             move: move,
             chatId: this.currentChat.id
         });
+    }
+
+    // Обработчик обновлений игр
+    handleGameUpdate(data) {
+        const { messageId, gameData } = data;
+        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+        
+        if (messageElement) {
+            const gameElement = messageElement.querySelector('.game-element');
+            if (gameElement) {
+                gameElement.outerHTML = this.createGameElement(gameData, messageId);
+            }
+        }
     }
 
     async sendMessage() {
@@ -940,15 +960,16 @@ class MessengerApp {
         this.socket.on('incoming-call', (data) => {
             const { callId, fromUserId, fromUsername, callType, chatId } = data;
             
-            if (confirm(`Входящий ${callType === 'video' ? 'видео' : 'аудио'}звонок от ${fromUsername}. Принять?`)) {
+            // Создаем красивое уведомление о звонке
+            this.showCallNotification(fromUsername, callType, () => {
                 this.acceptCall(callId, fromUserId, callType);
-            } else {
+            }, () => {
                 this.socket.emit('call-answer', {
                     targetUserId: fromUserId,
                     answer: 'rejected',
                     callId
                 });
-            }
+            });
         });
         
         // Handle call answer
@@ -989,6 +1010,46 @@ class MessengerApp {
                 }
             }
         });
+    }
+
+    showCallNotification(fromUsername, callType, onAccept, onReject) {
+        // Удаляем предыдущие уведомления
+        const existingNotification = document.querySelector('.call-notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        const notification = document.createElement('div');
+        notification.className = 'call-notification';
+        notification.innerHTML = `
+            <h4>📞 Входящий ${callType === 'video' ? 'видео' : 'аудио'}звонок</h4>
+            <p>От: ${this.escapeHtml(fromUsername)}</p>
+            <div class="call-actions">
+                <button class="accept-call">✅ Принять</button>
+                <button class="reject-call">❌ Отклонить</button>
+            </div>
+        `;
+        
+        // Добавляем обработчики
+        notification.querySelector('.accept-call').onclick = () => {
+            notification.remove();
+            onAccept();
+        };
+        
+        notification.querySelector('.reject-call').onclick = () => {
+            notification.remove();
+            onReject();
+        };
+        
+        document.body.appendChild(notification);
+        
+        // Автоматически убираем через 30 секунд
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                notification.remove();
+                onReject();
+            }
+        }, 30000);
     }
 
     async acceptCall(callId, fromUserId, callType) {
@@ -1108,11 +1169,6 @@ class MessengerApp {
                         <i class="fas fa-phone-slash"></i>
                     </button>
                 </div>
-                
-                <div class="call-info" style="display: flex; justify-content: space-between; align-items: center; padding: 0 30px 20px; color: var(--text-primary); font-family: var(--font-primary);">
-                    <span id="call-status">Подключение...</span>
-                    <span id="call-duration">00:00</span>
-                </div>
             </div>
         `;
         
@@ -1140,9 +1196,6 @@ class MessengerApp {
         document.getElementById('end-call-btn')?.addEventListener('click', () => {
             this.endCall(stream);
         });
-        
-        // Запускаем таймер
-        this.startCallTimer();
     }
 
     toggleCallAudio(stream) {
@@ -1211,21 +1264,6 @@ class MessengerApp {
         }
         
         this.showNotification('Звонок завершен', 'info');
-    }
-
-    startCallTimer() {
-        let seconds = 0;
-        this.callTimer = setInterval(() => {
-            seconds++;
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            const timeString = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-            
-            const durationEl = document.getElementById('call-duration');
-            if (durationEl) {
-                durationEl.textContent = timeString;
-            }
-        }, 1000);
     }
 
     async loadUsers() {
@@ -1725,6 +1763,8 @@ class MessengerApp {
         }
         
         try {
+            console.log('🔥 Отправляем стикер:', sticker);
+            
             const response = await fetch('/api/messages', {
                 method: 'POST',
                 headers: {
@@ -1734,16 +1774,20 @@ class MessengerApp {
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
                     text: sticker,
-                    type: 'sticker'
+                    type: 'text' // Изменяем на text вместо sticker
                 })
             });
             
             const data = await response.json();
+            console.log('🔥 Ответ сервера на стикер:', data);
+            
             if (data.success) {
-                document.getElementById('sticker-panel').style.display = 'none';
+                const stickerPanel = document.getElementById('sticker-panel');
+                if (stickerPanel) stickerPanel.style.display = 'none';
                 this.showNotification('Стикер отправлен!', 'success');
             } else {
-                this.showNotification('Ошибка отправки стикера', 'error');
+                console.error('🔥 Ошибка отправки стикера:', data);
+                this.showNotification('Ошибка отправки стикера: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
             console.error('🔥 Ошибка отправки стикера:', error);
@@ -1944,6 +1988,8 @@ class MessengerApp {
         }
         
         try {
+            console.log('🔥 Отправляем GIF:', gifUrl);
+            
             const response = await fetch('/api/messages', {
                 method: 'POST',
                 headers: {
@@ -1952,18 +1998,22 @@ class MessengerApp {
                 },
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
-                    text: '',
+                    text: '🎬 GIF',
                     type: 'gif',
-                    fileData: { url: gifUrl, type: 'gif' }
+                    fileData: { url: gifUrl, type: 'gif', mimetype: 'image/gif' }
                 })
             });
             
             const data = await response.json();
+            console.log('🔥 Ответ сервера на GIF:', data);
+            
             if (data.success) {
-                document.getElementById('sticker-panel').style.display = 'none';
+                const stickerPanel = document.getElementById('sticker-panel');
+                if (stickerPanel) stickerPanel.style.display = 'none';
                 this.showNotification('GIF отправлен!', 'success');
             } else {
-                this.showNotification('Ошибка отправки GIF', 'error');
+                console.error('🔥 Ошибка отправки GIF:', data);
+                this.showNotification('Ошибка отправки GIF: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
             console.error('🔥 Ошибка отправки GIF:', error);

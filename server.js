@@ -1628,21 +1628,32 @@ io.on('connection', (socket) => {
     socket.on('game-move', async (data) => {
         const { messageId, gameType, move, chatId } = data;
         
+        console.log('🎮 Получен ход в игре:', data);
+        
         if (!socket.userId) return;
         
         try {
             if (useDatabase) {
                 const message = await Message.findByPk(messageId);
-                if (!message || message.type !== 'game') return;
+                if (!message || message.type !== 'game') {
+                    console.log('🎮 Сообщение не найдено или не является игрой');
+                    return;
+                }
                 
                 let gameData = message.fileData || {};
+                console.log('🎮 Текущие данные игры:', gameData);
                 
                 // Обрабатываем ход в зависимости от типа игры
                 switch (gameData.type) {
                     case 'tic-tac-toe':
-                        if (gameData.status === 'active' && gameData.board[move.position] === '') {
-                            gameData.board[move.position] = gameData.currentPlayer;
+                        if ((gameData.status === 'active' || gameData.status === 'waiting') && 
+                            gameData.board && 
+                            move.position !== undefined && 
+                            gameData.board[move.position] === '') {
+                            
+                            gameData.board[move.position] = gameData.currentPlayer || 'X';
                             gameData.currentPlayer = gameData.currentPlayer === 'X' ? 'O' : 'X';
+                            gameData.status = 'active';
                             
                             // Проверяем победу
                             const winner = checkTicTacToeWinner(gameData.board);
@@ -1652,6 +1663,8 @@ io.on('connection', (socket) => {
                             } else if (!gameData.board.includes('')) {
                                 gameData.status = 'draw';
                             }
+                            
+                            console.log('🎮 Обновленные данные крестиков-ноликов:', gameData);
                         }
                         break;
                         
@@ -1704,6 +1717,7 @@ io.on('connection', (socket) => {
                 }
                 
                 await message.update({ fileData: gameData });
+                console.log('🎮 Игра обновлена в базе данных');
                 
                 // Уведомляем всех участников
                 io.to(chatId).emit('game-updated', {
@@ -1722,9 +1736,14 @@ io.on('connection', (socket) => {
                     // Аналогичная обработка для Map
                     switch (gameData.type) {
                         case 'tic-tac-toe':
-                            if (gameData.status === 'active' && gameData.board[move.position] === '') {
-                                gameData.board[move.position] = gameData.currentPlayer;
+                            if ((gameData.status === 'active' || gameData.status === 'waiting') && 
+                                gameData.board && 
+                                move.position !== undefined && 
+                                gameData.board[move.position] === '') {
+                                
+                                gameData.board[move.position] = gameData.currentPlayer || 'X';
                                 gameData.currentPlayer = gameData.currentPlayer === 'X' ? 'O' : 'X';
+                                gameData.status = 'active';
                                 
                                 const winner = checkTicTacToeWinner(gameData.board);
                                 if (winner) {
@@ -1747,6 +1766,7 @@ io.on('connection', (socket) => {
             }
         } catch (error) {
             console.error('Ошибка хода в игре:', error);
+            socket.emit('game-error', { error: 'Ошибка обработки хода' });
         }
     });
     
