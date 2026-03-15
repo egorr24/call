@@ -663,16 +663,20 @@ class MessengerApp {
         const modal = document.getElementById('status-modal');
         console.log('🔥 Модальное окно статуса:', modal);
         if (modal) {
-            modal.style.display = 'flex';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-            modal.style.zIndex = '10000';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
+            modal.style.cssText = `
+                display: flex !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                background-color: rgba(0, 0, 0, 0.8) !important;
+                z-index: 99999 !important;
+                justify-content: center !important;
+                align-items: center !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            `;
             console.log('🔥 Модальное окно статуса открыто');
         } else {
             console.warn('🔥 Модальное окно статуса не найдено');
@@ -685,6 +689,15 @@ class MessengerApp {
         console.log('🔥 Модальное окно пользователей:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.zIndex = '10000';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
             console.log('🔥 Модальное окно пользователей открыто');
             this.loadUsers();
         } else {
@@ -698,6 +711,15 @@ class MessengerApp {
         console.log('🔥 Модальное окно настроек:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.zIndex = '10000';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
             console.log('🔥 Модальное окно настроек открыто');
             this.loadUserSettings();
         } else {
@@ -706,9 +728,21 @@ class MessengerApp {
     }
 
     openGamesModal() {
+        console.log('🔥 Пытаемся открыть игры');
         const modal = document.getElementById('games-modal');
+        console.log('🔥 Модальное окно игр:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            modal.style.zIndex = '10000';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            console.log('🔥 Модальное окно игр открыто');
         } else {
             console.warn('🔥 Модальное окно игр не найдено');
         }
