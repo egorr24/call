@@ -17,6 +17,7 @@
     <link rel="preconnect" href="https://api.dicebear.com">
     <title>Flux Messenger</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="new-features.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -83,6 +84,9 @@
                         </div>
                     </div>
                     <div class="header-actions">
+                        <button class="icon-btn" title="Статус">
+                            <i class="fas fa-circle"></i>
+                        </button>
                         <button class="icon-btn" title="Найти пользователей">
                             <i class="fas fa-user-plus"></i>
                         </button>
@@ -123,6 +127,9 @@
                             </div>
                         </div>
                         <div class="chat-actions">
+                            <button class="icon-btn" title="Игры">
+                                <i class="fas fa-gamepad"></i>
+                            </button>
                             <button class="icon-btn" title="Видеозвонок">
                                 <i class="fas fa-video"></i>
                             </button>
@@ -145,12 +152,116 @@
                             <button class="icon-btn" title="Отправить фото">
                                 <i class="fas fa-image"></i>
                             </button>
+                            <button class="icon-btn sticker-btn" title="Стикеры и GIF" id="sticker-btn">
+                                <i class="fas fa-smile"></i>
+                            </button>
+                            <button class="icon-btn poll-btn" title="Создать опрос" id="poll-btn">
+                                <i class="fas fa-poll"></i>
+                            </button>
+                            <button class="icon-btn draw-btn" title="Совместное рисование" id="draw-btn">
+                                <i class="fas fa-paint-brush"></i>
+                            </button>
+                            <button class="icon-btn voice-btn" title="Голосовое сообщение" id="voice-btn">
+                                <i class="fas fa-microphone"></i>
+                            </button>
                             <input type="text" id="message-input" placeholder="Введите сообщение..." maxlength="1000">
                             <button class="icon-btn send-btn" title="Отправить">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
+                        
+                        <!-- ИМБОВЫЙ индикатор записи голоса -->
+                        <div id="voice-recording" class="voice-recording" style="display: none;">
+                            <div class="voice-recording-content">
+                                <div class="voice-wave">
+                                    <div class="wave-bar"></div>
+                                    <div class="wave-bar"></div>
+                                    <div class="wave-bar"></div>
+                                    <div class="wave-bar"></div>
+                                    <div class="wave-bar"></div>
+                                </div>
+                                <span class="voice-timer">00:00</span>
+                                <button class="voice-cancel" title="Отменить">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <button class="voice-send" title="Отправить">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
                         <div id="file-preview" class="file-preview" style="display: none;"></div>
+                        
+                        <!-- Панель стикеров и GIF -->
+                        <div id="sticker-panel" class="sticker-panel" style="display: none;">
+                            <div class="sticker-tabs">
+                                <button class="sticker-tab active" data-tab="stickers">
+                                    <i class="fas fa-smile"></i> Стикеры
+                                </button>
+                                <button class="sticker-tab" data-tab="gifs">
+                                    <i class="fas fa-images"></i> GIF
+                                </button>
+                            </div>
+                            <div class="sticker-content">
+                                <div id="stickers-grid" class="stickers-grid active">
+                                    <!-- Стикеры будут загружены динамически -->
+                                </div>
+                                <div id="gifs-grid" class="gifs-grid">
+                                    <input type="text" id="gif-search" placeholder="Поиск GIF..." class="gif-search">
+                                    <div class="gifs-container">
+                                        <!-- GIF будут загружены динамически -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Панель создания опроса -->
+                        <div id="poll-panel" class="poll-panel" style="display: none;">
+                            <div class="poll-header">
+                                <h4><i class="fas fa-poll"></i> Создать опрос</h4>
+                                <button class="close-poll-btn">×</button>
+                            </div>
+                            <div class="poll-form">
+                                <input type="text" id="poll-question" placeholder="Вопрос опроса..." maxlength="200">
+                                <div class="poll-options">
+                                    <input type="text" class="poll-option" placeholder="Вариант 1" maxlength="100">
+                                    <input type="text" class="poll-option" placeholder="Вариант 2" maxlength="100">
+                                </div>
+                                <button class="add-poll-option">+ Добавить вариант</button>
+                                <div class="poll-settings">
+                                    <label>
+                                        <input type="checkbox" id="poll-multiple"> Множественный выбор
+                                    </label>
+                                    <label>
+                                        <input type="checkbox" id="poll-anonymous"> Анонимный опрос
+                                    </label>
+                                </div>
+                                <button class="create-poll-btn">Создать опрос</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Панель рисования -->
+                        <div id="draw-panel" class="draw-panel" style="display: none;">
+                            <div class="draw-header">
+                                <h4><i class="fas fa-paint-brush"></i> Совместное рисование</h4>
+                                <button class="close-draw-btn">×</button>
+                            </div>
+                            <div class="draw-tools">
+                                <button class="draw-tool active" data-tool="pen">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="draw-tool" data-tool="eraser">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <input type="color" id="draw-color" value="#667eea">
+                                <input type="range" id="draw-size" min="1" max="20" value="3">
+                                <button class="clear-canvas">Очистить</button>
+                            </div>
+                            <canvas id="draw-canvas" width="400" height="300"></canvas>
+                            <div class="draw-actions">
+                                <button class="send-drawing">Отправить рисунок</button>
+                                <button class="cancel-drawing">Отмена</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -167,32 +278,105 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="settings-section">
-                    <h4>Аватар</h4>
-                    <div class="avatar-section">
-                        <img id="settings-avatar" src="" alt="Avatar" class="settings-avatar">
-                        <input type="file" id="avatar-input" style="display: none;" accept="image/*">
-                        <button class="btn-secondary">Изменить аватар</button>
+                <div class="settings-tabs">
+                    <button class="settings-tab active" data-tab="profile">
+                        <i class="fas fa-user"></i> Профиль
+                    </button>
+                    <button class="settings-tab" data-tab="themes">
+                        <i class="fas fa-palette"></i> Темы
+                    </button>
+                    <button class="settings-tab" data-tab="privacy">
+                        <i class="fas fa-shield-alt"></i> Приватность
+                    </button>
+                </div>
+                
+                <!-- Вкладка профиля -->
+                <div id="profile-settings" class="settings-content active">
+                    <div class="settings-section">
+                        <h4>Аватар</h4>
+                        <div class="avatar-section">
+                            <img id="settings-avatar" src="" alt="Avatar" class="settings-avatar">
+                            <input type="file" id="avatar-input" style="display: none;" accept="image/*">
+                            <button class="btn-secondary">Изменить аватар</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>Информация</h4>
+                        <div class="form-group">
+                            <label>Имя пользователя</label>
+                            <input type="text" id="settings-username" placeholder="Имя пользователя">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="settings-email" placeholder="Email" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h4>Безопасность</h4>
+                        <div class="form-group">
+                            <label>Новый пароль</label>
+                            <input type="password" id="settings-password" placeholder="Оставьте пустым, чтобы не менять">
+                        </div>
                     </div>
                 </div>
                 
-                <div class="settings-section">
-                    <h4>Информация</h4>
-                    <div class="form-group">
-                        <label>Имя пользователя</label>
-                        <input type="text" id="settings-username" placeholder="Имя пользователя">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="settings-email" placeholder="Email" readonly>
+                <!-- Вкладка тем -->
+                <div id="themes-settings" class="settings-content">
+                    <div class="settings-section">
+                        <h4>Выберите тему</h4>
+                        <div class="themes-grid">
+                            <div class="theme-card active" data-theme="business">
+                                <div class="theme-preview business-theme"></div>
+                                <span>Деловая</span>
+                            </div>
+                            <div class="theme-card" data-theme="dark">
+                                <div class="theme-preview dark-theme"></div>
+                                <span>Темная</span>
+                            </div>
+                            <div class="theme-card" data-theme="blue">
+                                <div class="theme-preview blue-theme"></div>
+                                <span>Синяя</span>
+                            </div>
+                            <div class="theme-card" data-theme="green">
+                                <div class="theme-preview green-theme"></div>
+                                <span>Зеленая</span>
+                            </div>
+                            <div class="theme-card" data-theme="purple">
+                                <div class="theme-preview purple-theme"></div>
+                                <span>Фиолетовая</span>
+                            </div>
+                            <div class="theme-card" data-theme="pink">
+                                <div class="theme-preview pink-theme"></div>
+                                <span>Розовая</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="settings-section">
-                    <h4>Безопасность</h4>
-                    <div class="form-group">
-                        <label>Новый пароль</label>
-                        <input type="password" id="settings-password" placeholder="Оставьте пустым, чтобы не менять">
+                <!-- Вкладка приватности -->
+                <div id="privacy-settings" class="settings-content">
+                    <div class="settings-section">
+                        <h4>Приватность</h4>
+                        <div class="privacy-option">
+                            <label>
+                                <input type="checkbox" id="online-status"> 
+                                Показывать статус "в сети"
+                            </label>
+                        </div>
+                        <div class="privacy-option">
+                            <label>
+                                <input type="checkbox" id="read-receipts"> 
+                                Отправлять уведомления о прочтении
+                            </label>
+                        </div>
+                        <div class="privacy-option">
+                            <label>
+                                <input type="checkbox" id="typing-indicator"> 
+                                Показывать индикатор печатания
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -214,12 +398,38 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="chat-type-selector">
+                    <button class="chat-type-btn active" data-type="private">
+                        <i class="fas fa-user"></i> Личный чат
+                    </button>
+                    <button class="chat-type-btn" data-type="group">
+                        <i class="fas fa-users"></i> Групповой чат
+                    </button>
+                </div>
+                
                 <div class="search-bar">
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Поиск пользователей..." id="user-search">
                 </div>
+                
+                <!-- Создание группового чата -->
+                <div id="group-creation" class="group-creation" style="display: none;">
+                    <div class="form-group">
+                        <input type="text" id="group-name" placeholder="Название группы" maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <textarea id="group-description" placeholder="Описание группы (необязательно)" maxlength="200"></textarea>
+                    </div>
+                    <div class="selected-users" id="selected-users"></div>
+                </div>
+                
                 <div class="users-list" id="users-list">
                     <!-- Пользователи будут загружены динамически -->
+                </div>
+                
+                <div class="modal-actions" id="group-actions" style="display: none;">
+                    <button class="btn-primary" id="create-group-btn">Создать группу</button>
+                    <button class="btn-secondary">Отмена</button>
                 </div>
             </div>
         </div>
@@ -251,6 +461,101 @@
             <div class="call-info">
                 <span id="call-status">Подключение...</span>
                 <span id="call-duration">00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно пересылки сообщений -->
+    <div id="forward-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-share"></i> Переслать сообщение</h3>
+                <button class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="forward-message-preview">
+                    <!-- Превью пересылаемого сообщения -->
+                </div>
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Поиск чатов..." id="forward-search">
+                </div>
+                <div class="forward-chats-list" id="forward-chats-list">
+                    <!-- Список чатов для пересылки -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" id="forward-send-btn" disabled>Переслать</button>
+                    <button class="btn-secondary">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно игр -->
+    <div id="games-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-gamepad"></i> Игры в чате</h3>
+                <button class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="games-grid">
+                    <div class="game-card" data-game="tic-tac-toe">
+                        <i class="fas fa-th"></i>
+                        <h4>Крестики-нолики</h4>
+                        <p>Классическая игра 3x3</p>
+                    </div>
+                    <div class="game-card" data-game="quiz">
+                        <i class="fas fa-question-circle"></i>
+                        <h4>Викторина</h4>
+                        <p>Вопросы и ответы</p>
+                    </div>
+                    <div class="game-card" data-game="word-game">
+                        <i class="fas fa-spell-check"></i>
+                        <h4>Угадай слово</h4>
+                        <p>Словесная игра</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно статусов -->
+    <div id="status-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-circle"></i> Мой статус</h3>
+                <button class="close-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="status-options">
+                    <div class="status-option" data-status="available">
+                        <div class="status-indicator available"></div>
+                        <span>Доступен</span>
+                    </div>
+                    <div class="status-option" data-status="busy">
+                        <div class="status-indicator busy"></div>
+                        <span>Занят</span>
+                    </div>
+                    <div class="status-option" data-status="away">
+                        <div class="status-indicator away"></div>
+                        <span>Отошел</span>
+                    </div>
+                    <div class="status-option" data-status="invisible">
+                        <div class="status-indicator invisible"></div>
+                        <span>Невидимый</span>
+                    </div>
+                </div>
+                <div class="custom-status">
+                    <input type="text" id="custom-status-text" placeholder="Пользовательский статус..." maxlength="100">
+                    <button class="set-status-btn">Установить</button>
+                </div>
             </div>
         </div>
     </div>

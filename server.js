@@ -697,6 +697,94 @@ app.get('/api/chats/:chatId/messages', authenticateToken, async (req, res) => {
     }
 });
 
+// ИМБОВЫЙ API для групповых чатов
+app.post('/api/groups', authenticateToken, async (req, res) => {
+    try {
+        const { name, description, participants } = req.body;
+        
+        if (!name || !participants || participants.length < 2) {
+            return res.status(400).json({ error: 'Название и минимум 2 участника обязательны' });
+        }
+        
+        if (participants.length > 99) {
+            return res.status(400).json({ error: 'Максимум 100 участников в группе' });
+        }
+        
+        if (useDatabase) {
+            // Создаем групповой чат
+            const chat = await Chat.create({
+                type: 'group',
+                name: name,
+                description: description || null
+            });
+            
+            // Добавляем создателя как владельца
+            const allParticipants = [
+                { chatId: chat.id, userId: req.userId, role: 'owner' },
+                ...participants.map(userId => ({ chatId: chat.id, userId, role: 'member' }))
+            ];
+            
+            await ChatParticipant.bulkCreate(allParticipants);
+            
+            res.json({
+                success: true,
+                chatId: chat.id,
+                message: 'Группа создана успешно'
+            });
+            
+            // Уведомляем всех участников о новой группе
+            participants.forEach(userId => {
+                const userSocketId = onlineUsers.get(userId);
+                if (userSocketId) {
+                    io.to(userSocketId).emit('new-group-chat', { 
+                        chatId: chat.id,
+                        name: name,
+                        createdBy: req.username
+                    });
+                }
+            });
+            
+        } else {
+            // Fallback для Map
+            const chatId = uuidv4();
+            const chat = {
+                id: chatId,
+                type: 'group',
+                name: name,
+                description: description || null,
+                participants: [req.userId, ...participants],
+                owner: req.userId,
+                createdAt: new Date()
+            };
+            
+            chats.set(chatId, chat);
+            messages.set(chatId, []);
+            
+            res.json({
+                success: true,
+                chatId: chatId,
+                message: 'Группа создана успешно'
+            });
+            
+            // Уведомляем участников
+            participants.forEach(userId => {
+                const userSocketId = onlineUsers.get(userId);
+                if (userSocketId) {
+                    io.to(userSocketId).emit('new-group-chat', { 
+                        chatId: chatId,
+                        name: name,
+                        createdBy: req.username
+                    });
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Ошибка создания группы:', error);
+        res.status(500).json({ error: 'Ошибка создания группы' });
+    }
+});
+
 // Загрузка файлов
 app.post('/api/upload', authenticateToken, (req, res) => {
     upload.single('file')(req, res, (err) => {
@@ -788,7 +876,7 @@ io.on('connection', (socket) => {
     
     // Отправка сообщения
     socket.on('send-message', async (data) => {
-        const { chatId, text, type = 'text', fileData } = data;
+        const { chatId, text, type = 'text', fileData, replyTo } = data;
         
         if (!socket.userId) return;
         
@@ -801,6 +889,7 @@ io.on('connection', (socket) => {
                     text: text,
                     type: type,
                     fileData: fileData || null,
+                    replyTo: replyTo || null,
                     isRead: false
                 });
                 
@@ -814,6 +903,8 @@ io.on('connection', (socket) => {
                     text: message.text,
                     type: message.type,
                     fileData: message.fileData,
+                    replyTo: message.replyTo,
+                    reactions: {},
                     timestamp: message.createdAt,
                     read: message.isRead
                 };
@@ -829,6 +920,8 @@ io.on('connection', (socket) => {
                     text,
                     type,
                     fileData: fileData || null,
+                    replyTo: replyTo || null,
+                    reactions: {},
                     timestamp: new Date(),
                     read: false
                 };
@@ -845,6 +938,128 @@ io.on('connection', (socket) => {
         } catch (error) {
             console.error('Ошибка отправки сообщения:', error);
             socket.emit('message-error', { error: 'Ошибка отправки сообщения' });
+        }
+    });
+    
+    // ИМБОВЫЕ РЕАКЦИИ НА СООБЩЕНИЯ
+    socket.on('add-reaction', async (data) => {
+        const { messageId, emoji, chatId } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            if (useDatabase) {
+                const message = await Message.findByPk(messageId);
+                if (!message) return;
+                
+                let reactions = message.fileData?.reactions || {};
+                if (!reactions[emoji]) {
+                    reactions[emoji] = [];
+                }
+                
+                if (!reactions[emoji].includes(socket.userId)) {
+                    reactions[emoji].push(socket.userId);
+                }
+                
+                // Обновляем сообщение
+                const updatedFileData = { ...message.fileData, reactions };
+                await message.update({ fileData: updatedFileData });
+                
+                // Уведомляем всех участников
+                io.to(chatId).emit('reaction-added', {
+                    messageId,
+                    emoji,
+                    userId: socket.userId,
+                    reactions
+                });
+            } else {
+                // Fallback для Map
+                const chatMessages = messages.get(chatId) || [];
+                const message = chatMessages.find(m => m.id === messageId);
+                
+                if (message) {
+                    if (!message.reactions) message.reactions = {};
+                    if (!message.reactions[emoji]) message.reactions[emoji] = [];
+                    
+                    if (!message.reactions[emoji].includes(socket.userId)) {
+                        message.reactions[emoji].push(socket.userId);
+                    }
+                    
+                    io.to(chatId).emit('reaction-added', {
+                        messageId,
+                        emoji,
+                        userId: socket.userId,
+                        reactions: message.reactions
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка добавления реакции:', error);
+        }
+    });
+    
+    socket.on('toggle-reaction', async (data) => {
+        const { messageId, emoji, chatId } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            if (useDatabase) {
+                const message = await Message.findByPk(messageId);
+                if (!message) return;
+                
+                let reactions = message.fileData?.reactions || {};
+                if (!reactions[emoji]) {
+                    reactions[emoji] = [];
+                }
+                
+                const userIndex = reactions[emoji].indexOf(socket.userId);
+                if (userIndex > -1) {
+                    reactions[emoji].splice(userIndex, 1);
+                    if (reactions[emoji].length === 0) {
+                        delete reactions[emoji];
+                    }
+                } else {
+                    reactions[emoji].push(socket.userId);
+                }
+                
+                const updatedFileData = { ...message.fileData, reactions };
+                await message.update({ fileData: updatedFileData });
+                
+                io.to(chatId).emit('reaction-toggled', {
+                    messageId,
+                    emoji,
+                    userId: socket.userId,
+                    reactions
+                });
+            } else {
+                const chatMessages = messages.get(chatId) || [];
+                const message = chatMessages.find(m => m.id === messageId);
+                
+                if (message) {
+                    if (!message.reactions) message.reactions = {};
+                    if (!message.reactions[emoji]) message.reactions[emoji] = [];
+                    
+                    const userIndex = message.reactions[emoji].indexOf(socket.userId);
+                    if (userIndex > -1) {
+                        message.reactions[emoji].splice(userIndex, 1);
+                        if (message.reactions[emoji].length === 0) {
+                            delete message.reactions[emoji];
+                        }
+                    } else {
+                        message.reactions[emoji].push(socket.userId);
+                    }
+                    
+                    io.to(chatId).emit('reaction-toggled', {
+                        messageId,
+                        emoji,
+                        userId: socket.userId,
+                        reactions: message.reactions
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка переключения реакции:', error);
         }
     });
     
@@ -1051,6 +1266,200 @@ io.on('connection', (socket) => {
         }
     });
     
+    // Обновление статуса пользователя
+    socket.on('update-status', async (data) => {
+        const { status, text } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            if (useDatabase) {
+                const user = await User.findByPk(socket.userId);
+                if (user) {
+                    await user.update({ 
+                        status: status,
+                        statusText: text || null
+                    });
+                }
+            } else {
+                const user = users.get(socket.userId);
+                if (user) {
+                    user.status = status;
+                    user.statusText = text || null;
+                }
+            }
+            
+            // Уведомляем всех о смене статуса
+            socket.broadcast.emit('user-status-changed', {
+                userId: socket.userId,
+                status: status,
+                statusText: text
+            });
+            
+        } catch (error) {
+            console.error('Ошибка обновления статуса:', error);
+        }
+    });
+    
+    // Голосование в опросах
+    socket.on('vote-poll', async (data) => {
+        const { messageId, optionIndex, chatId } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            if (useDatabase) {
+                const message = await Message.findByPk(messageId);
+                if (!message || message.type !== 'poll') return;
+                
+                let pollData = message.fileData || {};
+                if (!pollData.votes) pollData.votes = {};
+                if (!pollData.votes[optionIndex]) pollData.votes[optionIndex] = [];
+                
+                // Убираем предыдущие голоса пользователя если не множественный выбор
+                if (!pollData.multiple) {
+                    Object.keys(pollData.votes).forEach(key => {
+                        pollData.votes[key] = pollData.votes[key].filter(userId => userId !== socket.userId);
+                    });
+                }
+                
+                // Добавляем или убираем голос
+                const userVoteIndex = pollData.votes[optionIndex].indexOf(socket.userId);
+                if (userVoteIndex > -1) {
+                    pollData.votes[optionIndex].splice(userVoteIndex, 1);
+                } else {
+                    pollData.votes[optionIndex].push(socket.userId);
+                }
+                
+                await message.update({ fileData: pollData });
+                
+                // Уведомляем всех участников
+                io.to(chatId).emit('poll-updated', {
+                    messageId,
+                    pollData
+                });
+                
+            } else {
+                // Fallback для Map
+                const chatMessages = messages.get(chatId) || [];
+                const message = chatMessages.find(m => m.id === messageId);
+                
+                if (message && message.type === 'poll') {
+                    if (!message.pollData.votes) message.pollData.votes = {};
+                    if (!message.pollData.votes[optionIndex]) message.pollData.votes[optionIndex] = [];
+                    
+                    // Убираем предыдущие голоса если не множественный выбор
+                    if (!message.pollData.multiple) {
+                        Object.keys(message.pollData.votes).forEach(key => {
+                            message.pollData.votes[key] = message.pollData.votes[key].filter(userId => userId !== socket.userId);
+                        });
+                    }
+                    
+                    // Добавляем или убираем голос
+                    const userVoteIndex = message.pollData.votes[optionIndex].indexOf(socket.userId);
+                    if (userVoteIndex > -1) {
+                        message.pollData.votes[optionIndex].splice(userVoteIndex, 1);
+                    } else {
+                        message.pollData.votes[optionIndex].push(socket.userId);
+                    }
+                    
+                    io.to(chatId).emit('poll-updated', {
+                        messageId,
+                        pollData: message.pollData
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка голосования в опросе:', error);
+        }
+    });
+    
+    // Ход в игре
+    socket.on('game-move', async (data) => {
+        const { messageId, move, chatId } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            if (useDatabase) {
+                const message = await Message.findByPk(messageId);
+                if (!message || message.type !== 'game') return;
+                
+                let gameData = message.fileData || {};
+                
+                // Обрабатываем ход в зависимости от типа игры
+                switch (gameData.type) {
+                    case 'tic-tac-toe':
+                        if (gameData.status === 'active' && gameData.board[move.position] === '') {
+                            gameData.board[move.position] = gameData.currentPlayer;
+                            gameData.currentPlayer = gameData.currentPlayer === 'X' ? 'O' : 'X';
+                            
+                            // Проверяем победу
+                            const winner = this.checkTicTacToeWinner(gameData.board);
+                            if (winner) {
+                                gameData.status = 'finished';
+                                gameData.winner = winner;
+                            } else if (!gameData.board.includes('')) {
+                                gameData.status = 'draw';
+                            }
+                        }
+                        break;
+                        
+                    case 'word-game':
+                        if (gameData.status === 'active' && move.letter) {
+                            const letter = move.letter.toUpperCase();
+                            if (!gameData.guessedLetters.includes(letter)) {
+                                gameData.guessedLetters.push(letter);
+                                
+                                if (gameData.word.includes(letter)) {
+                                    // Открываем буквы
+                                    for (let i = 0; i < gameData.word.length; i++) {
+                                        if (gameData.word[i] === letter) {
+                                            gameData.guessed[i] = letter;
+                                        }
+                                    }
+                                    
+                                    // Проверяем победу
+                                    if (!gameData.guessed.includes('_')) {
+                                        gameData.status = 'won';
+                                    }
+                                } else {
+                                    gameData.attempts--;
+                                    if (gameData.attempts <= 0) {
+                                        gameData.status = 'lost';
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                }
+                
+                await message.update({ fileData: gameData });
+                
+                // Уведомляем всех участников
+                io.to(chatId).emit('game-updated', {
+                    messageId,
+                    gameData
+                });
+                
+            } else {
+                // Fallback для Map - аналогичная логика
+                const chatMessages = messages.get(chatId) || [];
+                const message = chatMessages.find(m => m.id === messageId);
+                
+                if (message && message.type === 'game') {
+                    // Аналогичная обработка для Map
+                    io.to(chatId).emit('game-updated', {
+                        messageId,
+                        gameData: message.gameData
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка хода в игре:', error);
+        }
+    });
+    
     // Отключение
     socket.on('disconnect', async () => {
         console.log('Пользователь отключился:', socket.id);
@@ -1110,6 +1519,24 @@ setInterval(() => {
         }
     });
 }, 30 * 60 * 1000);
+
+// Вспомогательные функции для игр
+function checkTicTacToeWinner(board) {
+    const winPatterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // горизонтали
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // вертикали
+        [0, 4, 8], [2, 4, 6] // диагонали
+    ];
+    
+    for (const pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a];
+        }
+    }
+    
+    return null;
+}
 
 // Запуск сервера с инициализацией базы данных
 async function startServer() {

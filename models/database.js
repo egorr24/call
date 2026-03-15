@@ -77,6 +77,10 @@ if (sequelize) {
             type: DataTypes.STRING,
             allowNull: true // Для приватных чатов имя не нужно
         },
+        description: {
+            type: DataTypes.TEXT,
+            allowNull: true
+        },
         avatar: {
             type: DataTypes.STRING,
             allowNull: true
@@ -150,12 +154,25 @@ if (sequelize) {
             allowNull: true
         },
         type: {
-            type: DataTypes.ENUM('text', 'file', 'image', 'video', 'audio'),
+            type: DataTypes.ENUM('text', 'file', 'image', 'video', 'audio', 'voice'),
             defaultValue: 'text'
         },
         fileData: {
             type: DataTypes.JSONB,
             allowNull: true
+        },
+        replyTo: {
+            type: DataTypes.UUID,
+            allowNull: true,
+            references: {
+                model: 'messages',
+                key: 'id'
+            }
+        },
+        reactions: {
+            type: DataTypes.JSONB,
+            allowNull: true,
+            defaultValue: {}
         },
         isRead: {
             type: DataTypes.BOOLEAN,

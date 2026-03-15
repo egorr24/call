@@ -1,0 +1,711 @@
+/* ========== НОВЫЕ ФУНКЦИИ МЕССЕНДЖЕРА ========== */
+
+/* Панель стикеров и GIF */
+.sticker-panel {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 1001;
+    max-height: 300px;
+    animation: slideUpIn 0.3s ease;
+}
+
+.sticker-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 4px;
+}
+
+.sticker-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sticker-tab.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #ffffff;
+}
+
+.stickers-grid {
+    display: none;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.stickers-grid.active {
+    display: grid;
+}
+
+.sticker-item {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.sticker-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.1);
+}
+
+.gifs-grid {
+    display: none;
+}
+
+.gifs-grid.active {
+    display: block;
+}
+
+.gif-search {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    margin-bottom: 12px;
+}
+
+.gifs-container {
+    max-height: 200px;
+    overflow-y: auto;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Панель опросов */
+.poll-panel {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 1001;
+    animation: slideUpIn 0.3s ease;
+}
+
+.poll-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.poll-header h4 {
+    color: #ffffff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.close-poll-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 20px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.close-poll-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+#poll-question {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.poll-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.poll-option {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 13px;
+}
+
+.add-poll-option {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.add-poll-option:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.poll-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.poll-settings label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.create-poll-btn {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.create-poll-btn:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46c1);
+    transform: translateY(-1px);
+}
+
+/* Панель рисования */
+.draw-panel {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    right: 20px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 1001;
+    animation: slideUpIn 0.3s ease;
+}
+
+.draw-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.draw-header h4 {
+    color: #ffffff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.close-draw-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 20px;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.close-draw-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.draw-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.draw-tool {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.draw-tool.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.draw-tool:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+#draw-color {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#draw-size {
+    flex: 1;
+    max-width: 100px;
+}
+
+.clear-canvas {
+    padding: 6px 12px;
+    background: rgba(255, 107, 107, 0.2);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    color: #ff6b6b;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.clear-canvas:hover {
+    background: rgba(255, 107, 107, 0.3);
+}
+
+#draw-canvas {
+    width: 100%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: crosshair;
+    margin-bottom: 16px;
+}
+
+.draw-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.send-drawing {
+    flex: 1;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.send-drawing:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46c1);
+    transform: translateY(-1px);
+}
+
+.cancel-drawing {
+    flex: 1;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cancel-drawing:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+/* Игры */
+.games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.game-card {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.game-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.5);
+    transform: translateY(-2px);
+}
+
+.game-card i {
+    font-size: 32px;
+    color: #667eea;
+    margin-bottom: 12px;
+}
+
+.game-card h4 {
+    color: #ffffff;
+    margin: 0 0 8px 0;
+    font-size: 16px;
+}
+
+.game-card p {
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+    font-size: 13px;
+}
+
+/* Статусы */
+.status-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.status-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-indicator.available {
+    background: #4ade80;
+}
+
+.status-indicator.busy {
+    background: #f87171;
+}
+
+.status-indicator.away {
+    background: #fbbf24;
+}
+
+.status-indicator.invisible {
+    background: #6b7280;
+}
+
+.custom-status {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+#custom-status-text {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.set-status-btn {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.set-status-btn:hover {
+    background: linear-gradient(135deg, #5a67d8, #6b46c1);
+}
+
+/* Пересылка сообщений */
+.forward-message-preview {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid #667eea;
+}
+
+.forward-preview {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.forward-from {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 4px;
+}
+
+.forward-text {
+    font-size: 14px;
+}
+
+.forward-chats-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.forward-chat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.forward-chat-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.forward-chat-item .chat-info {
+    flex: 1;
+}
+
+.forward-chat-item .chat-name {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.forward-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #667eea;
+}
+
+/* Сообщения с играми */
+.game-message {
+    padding: 16px;
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    margin-top: 8px;
+}
+
+.game-title {
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tic-tac-toe-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    max-width: 150px;
+    margin: 12px 0;
+}
+
+.tic-tac-toe-cell {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.tic-tac-toe-cell:hover:empty {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.poll-message {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-top: 8px;
+}
+
+.poll-question {
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 12px;
+}
+
+.poll-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.poll-option-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.poll-option-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(102, 126, 234, 0.3);
+}
+
+.poll-option-text {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.poll-option-votes {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+/* Анимации */
+@keyframes slideUpIn {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .sticker-panel,
+    .poll-panel,
+    .draw-panel {
+        left: 10px;
+        right: 10px;
+        bottom: 70px;
+    }
+    
+    .stickers-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .sticker-item {
+        width: 35px;
+        height: 35px;
+        font-size: 20px;
+    }
+    
+    #draw-canvas {
+        height: 200px;
+    }
+    
+    .games-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .draw-tools {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .draw-tool {
+        width: 32px;
+        height: 32px;
+    }
+    
+    #draw-color {
+        width: 32px;
+        height: 32px;
+    }
+}
