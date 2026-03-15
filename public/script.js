@@ -49,9 +49,11 @@ class MessengerApp {
             this.switchAuthTab(target.dataset.tab);
         } else if (target.classList.contains('auth-btn')) {
             const form = target.closest('.auth-form');
-            if (form.id === 'login-form') {
+            if (form && form.id === 'login-form') {
+                console.log('🔥 Нажата кнопка входа');
                 this.handleLogin();
-            } else if (form.id === 'register-form') {
+            } else if (form && form.id === 'register-form') {
+                console.log('🔥 Нажата кнопка регистрации');
                 this.handleRegister();
             }
         }
@@ -119,29 +121,36 @@ class MessengerApp {
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
 
+        console.log('🔥 Попытка входа:', { email, password: '***' });
+
         if (!email || !password) {
             this.showNotification('Заполните все поля', 'error');
             return;
         }
 
         try {
-            const response = await fetch('/api/auth/login', {
+            console.log('🔥 Отправляем запрос на /api/login');
+            const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
+            console.log('🔥 Ответ сервера:', response.status, response.statusText);
             const data = await response.json();
+            console.log('🔥 Данные ответа:', data);
             
             if (data.success) {
                 this.currentUser = data.user;
                 localStorage.setItem('token', data.token);
                 this.showMainScreen();
                 this.connectSocket();
+                this.showNotification('Вход выполнен успешно!', 'success');
             } else {
                 this.showNotification(data.message || 'Ошибка входа', 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при входе:', error);
             this.showNotification('Ошибка подключения', 'error');
         }
     }
@@ -150,6 +159,8 @@ class MessengerApp {
         const email = document.getElementById('register-email').value.trim();
         const username = document.getElementById('register-username').value.trim();
         const password = document.getElementById('register-password').value;
+
+        console.log('🔥 Попытка регистрации:', { email, username, password: '***' });
 
         if (!email || !username || !password) {
             this.showNotification('Заполните все поля', 'error');
@@ -162,13 +173,16 @@ class MessengerApp {
         }
 
         try {
-            const response = await fetch('/api/auth/register', {
+            console.log('🔥 Отправляем запрос на /api/register');
+            const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, username, password })
             });
 
+            console.log('🔥 Ответ сервера:', response.status, response.statusText);
             const data = await response.json();
+            console.log('🔥 Данные ответа:', data);
             
             if (data.success) {
                 this.showNotification('Регистрация успешна! Войдите в систему', 'success');
@@ -177,6 +191,7 @@ class MessengerApp {
                 this.showNotification(data.message || 'Ошибка регистрации', 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при регистрации:', error);
             this.showNotification('Ошибка подключения', 'error');
         }
     }
@@ -184,7 +199,7 @@ class MessengerApp {
         const token = localStorage.getItem('token');
         if (token) {
             // Verify token with server
-            fetch('/api/auth/verify', {
+            fetch('/api/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             .then(response => response.json())
@@ -797,7 +812,9 @@ class MessengerApp {
 // Initialize the app
 let app;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔥 DOM загружен, инициализируем приложение');
     app = MessengerApp.init();
+    console.log('🔥 Приложение инициализировано:', app);
 });
 
 // Add global event handlers for modal close buttons

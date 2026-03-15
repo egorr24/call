@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест авторизации</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin: 10px 0; }
+        input { padding: 10px; margin: 5px; width: 200px; }
+        button { padding: 10px 20px; margin: 5px; }
+        .result { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>Тест авторизации мессенджера</h1>
+    
+    <div class="form-group">
+        <h3>Регистрация</h3>
+        <input type="text" id="reg-username" placeholder="Имя пользователя" value="testuser">
+        <input type="email" id="reg-email" placeholder="Email" value="test@example.com">
+        <input type="password" id="reg-password" placeholder="Пароль" value="123456">
+        <button onclick="testRegister()">Зарегистрироваться</button>
+    </div>
+    
+    <div class="form-group">
+        <h3>Вход</h3>
+        <input type="email" id="login-email" placeholder="Email" value="test@example.com">
+        <input type="password" id="login-password" placeholder="Пароль" value="123456">
+        <button onclick="testLogin()">Войти</button>
+    </div>
+    
+    <div class="form-group">
+        <h3>Проверка токена</h3>
+        <button onclick="testToken()">Проверить токен</button>
+        <button onclick="clearToken()">Очистить токен</button>
+    </div>
+    
+    <div id="result" class="result">Результаты появятся здесь...</div>
+    
+    <script>
+        function log(message) {
+            const result = document.getElementById('result');
+            result.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+            console.log(message);
+        }
+        
+        async function testRegister() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            
+            log('Отправляем запрос регистрации...');
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                const data = await response.json();
+                log('Ответ регистрации: ' + JSON.stringify(data));
+            } catch (error) {
+                log('Ошибка регистрации: ' + error.message);
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            log('Отправляем запрос входа...');
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                log('Ответ входа: ' + JSON.stringify(data));
+                
+                if (data.success && data.token) {
+                    localStorage.setItem('token', data.token);
+                    log('Токен сохранен в localStorage');
+                }
+            } catch (error) {
+                log('Ошибка входа: ' + error.message);
+            }
+        }
+        
+        async function testToken() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                log('Токен не найден в localStorage');
+                return;
+            }
+            
+            log('Проверяем токен...');
+            
+            try {
+                const response = await fetch('/api/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                log('Ответ проверки токена: ' + JSON.stringify(data));
+            } catch (error) {
+                log('Ошибка проверки токена: ' + error.message);
+            }
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            log('Токен удален из localStorage');
+        }
+        
+        // Очистка результатов
+        document.getElementById('result').innerHTML = 'Готов к тестированию...<br>';
+    </script>
+</body>
+</html>

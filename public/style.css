@@ -1684,9 +1684,35 @@ body {
 
 /* Анимации для уведомлений */
 .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    max-width: 300px;
     opacity: 0;
     transform: translateY(-20px);
     animation: notificationSlide 0.4s ease forwards;
+}
+
+.notification.success {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.notification.error {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.notification.info {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 @keyframes notificationSlide {
