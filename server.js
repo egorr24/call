@@ -589,22 +589,16 @@ app.get('/api/chats', authenticateToken, async (req, res) => {
                 
                 chatList.push({
                     id: chat.id,
-                    user: {
-                        id: otherParticipant.User.id,
-                        username: otherParticipant.User.username,
-                        avatar: otherParticipant.User.avatar,
-                        online: onlineUsers.has(otherParticipant.User.id)
-                    },
-                    lastMessage: lastMessage ? {
-                        text: lastMessage.text,
-                        timestamp: lastMessage.createdAt,
-                        sender: lastMessage.senderId
-                    } : null,
+                    name: otherParticipant.User.username,
+                    avatar: otherParticipant.User.avatar,
+                    isOnline: onlineUsers.has(otherParticipant.User.id),
+                    lastMessage: lastMessage ? lastMessage.text : null,
+                    lastMessageTime: lastMessage ? lastMessage.createdAt : null,
                     unreadCount: 0 // TODO: Implement unread count
                 });
             }
             
-            res.json(chatList);
+            res.json({ success: true, chats: chatList });
         } else {
             // Используем Map (fallback)
             const userChats = Array.from(chats.values()).filter(chat => 
@@ -617,28 +611,22 @@ app.get('/api/chats', authenticateToken, async (req, res) => {
                 
                 return {
                     id: chat.id,
-                    user: {
-                        id: otherUser.id,
-                        username: otherUser.username,
-                        avatar: otherUser.avatar,
-                        online: onlineUsers.has(otherUser.id)
-                    },
-                    lastMessage: lastMessage ? {
-                        text: lastMessage.text,
-                        timestamp: lastMessage.timestamp,
-                        sender: lastMessage.sender
-                    } : null,
+                    name: otherUser ? otherUser.username : 'Неизвестный пользователь',
+                    avatar: otherUser ? otherUser.avatar : null,
+                    isOnline: otherUser ? onlineUsers.has(otherUser.id) : false,
+                    lastMessage: lastMessage ? lastMessage.text : null,
+                    lastMessageTime: lastMessage ? lastMessage.timestamp : null,
                     unreadCount: chatMessages.filter(msg => 
                         msg.sender !== req.userId && !msg.read
                     ).length
                 };
             });
             
-            res.json(userChats);
+            res.json({ success: true, chats: userChats });
         }
     } catch (error) {
         console.error('Ошибка получения чатов:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
 

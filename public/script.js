@@ -42,9 +42,16 @@ class MessengerApp {
     }
 
     handleGlobalClick(e) {
-        const target = e.target.closest('button') || e.target;
+        // Находим ближайшую кнопку или элемент с обработчиком
+        const target = e.target.closest('button') || e.target.closest('[data-action]') || e.target;
         
-        console.log('🔥 Клик по элементу:', target, 'Классы:', target.className, 'Title:', target.title);
+        console.log('🔥 Клик по элементу:', target.tagName, 'Классы:', target.className, 'Title:', target.title, 'ID:', target.id);
+        
+        // Проверяем иконки внутри кнопок
+        const button = e.target.closest('button');
+        if (button) {
+            console.log('🔥 Найдена кнопка:', button.className, 'Title:', button.title);
+        }
         
         // Auth buttons
         if (target.classList.contains('tab-btn')) {
@@ -59,28 +66,28 @@ class MessengerApp {
                 this.handleRegister();
             }
         }
-        // Header buttons
-        else if (target.title === 'Статус' || target.classList.contains('status-btn')) {
+        // Header buttons - проверяем и кнопку и её родителя
+        else if (target.title === 'Статус' || (button && button.title === 'Статус')) {
             console.log('🔥 Открываем статус');
             this.openStatusModal();
-        } else if (target.title === 'Найти пользователей' || target.classList.contains('users-btn')) {
+        } else if (target.title === 'Найти пользователей' || (button && button.title === 'Найти пользователей')) {
             console.log('🔥 Открываем поиск пользователей');
             this.openUsersModal();
-        } else if (target.title === 'Настройки' || target.classList.contains('settings-btn')) {
+        } else if (target.title === 'Настройки' || (button && button.title === 'Настройки')) {
             console.log('🔥 Открываем настройки');
             this.openSettingsModal();
-        } else if (target.title === 'Выйти' || target.classList.contains('logout-btn')) {
+        } else if (target.title === 'Выйти' || (button && button.title === 'Выйти')) {
             console.log('🔥 Выходим');
             this.logout();
         }
         // Chat actions
-        else if (target.title === 'Игры' || target.classList.contains('games-btn')) {
+        else if (target.title === 'Игры' || (button && button.title === 'Игры')) {
             console.log('🔥 Открываем игры');
             this.openGamesModal();
-        } else if (target.title === 'Видеозвонок' || target.classList.contains('video-call-btn')) {
+        } else if (target.title === 'Видеозвонок' || (button && button.title === 'Видеозвонок')) {
             console.log('🔥 Видеозвонок');
             this.startVideoCall();
-        } else if (target.title === 'Аудиозвонок' || target.classList.contains('audio-call-btn')) {
+        } else if (target.title === 'Аудиозвонок' || (button && button.title === 'Аудиозвонок')) {
             console.log('🔥 Аудиозвонок');
             this.startAudioCall();
         }

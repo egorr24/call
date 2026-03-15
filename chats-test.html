@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API чатов</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .form-group { margin: 10px 0; }
+        button { padding: 10px 20px; margin: 5px; }
+        .result { margin: 20px 0; padding: 10px; background: #f0f0f0; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Тест API чатов</h1>
+    
+    <div class="form-group">
+        <button onclick="testChats()">Загрузить чаты</button>
+        <button onclick="testUsers()">Загрузить пользователей</button>
+        <button onclick="testMe()">Проверить профиль</button>
+        <button onclick="clearResult()">Очистить</button>
+    </div>
+    
+    <div id="result" class="result">Результаты появятся здесь...</div>
+    
+    <script>
+        function log(message) {
+            const result = document.getElementById('result');
+            result.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            console.log(message);
+        }
+        
+        async function testChats() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                log('Токен не найден. Сначала войдите в систему.');
+                return;
+            }
+            
+            log('Загружаем чаты...');
+            
+            try {
+                const response = await fetch('/api/chats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                log('Статус ответа: ' + response.status);
+                const data = await response.json();
+                log('Данные чатов: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Ошибка загрузки чатов: ' + error.message);
+            }
+        }
+        
+        async function testUsers() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                log('Токен не найден. Сначала войдите в систему.');
+                return;
+            }
+            
+            log('Загружаем пользователей...');
+            
+            try {
+                const response = await fetch('/api/users', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                log('Статус ответа: ' + response.status);
+                const data = await response.json();
+                log('Данные пользователей: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Ошибка загрузки пользователей: ' + error.message);
+            }
+        }
+        
+        async function testMe() {
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                log('Токен не найден. Сначала войдите в систему.');
+                return;
+            }
+            
+            log('Проверяем профиль...');
+            
+            try {
+                const response = await fetch('/api/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                log('Статус ответа: ' + response.status);
+                const data = await response.json();
+                log('Данные профиля: ' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                log('Ошибка проверки профиля: ' + error.message);
+            }
+        }
+        
+        function clearResult() {
+            document.getElementById('result').textContent = 'Готов к тестированию...\n';
+        }
+        
+        // Показываем токен при загрузке
+        const token = localStorage.getItem('token');
+        if (token) {
+            log('Найден токен: ' + token.substring(0, 20) + '...');
+        } else {
+            log('Токен не найден. Сначала войдите в основном приложении.');
+        }
+    </script>
+</body>
+</html>
