@@ -888,7 +888,61 @@ class MessengerApp {
         if (modal) {
             modal.style.display = 'flex';
             this.loadUserSettings();
+            this.setupModernSettingsHandlers();
         }
+    }
+
+    setupModernSettingsHandlers() {
+        // Обработчики для элементов настроек
+        document.querySelectorAll('.setting-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const setting = item.dataset.setting;
+                this.openSettingsSubscreen(setting);
+            });
+        });
+
+        // Обработчик для изменения аватара
+        document.querySelector('.avatar-edit-btn')?.addEventListener('click', () => {
+            document.getElementById('avatar-input').click();
+        });
+
+        document.querySelector('.large-avatar')?.addEventListener('click', () => {
+            document.getElementById('avatar-input').click();
+        });
+
+        // Обработчики тем
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
+                option.classList.add('active');
+                const theme = option.dataset.theme;
+                this.selectTheme(theme);
+            });
+        });
+    }
+
+    openSettingsSubscreen(setting) {
+        if (setting === 'logout') {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                this.logout();
+            }
+            return;
+        }
+
+        const subscreen = document.getElementById(`${setting}-settings`);
+        if (subscreen) {
+            subscreen.style.display = 'block';
+            subscreen.classList.add('active');
+        }
+    }
+
+    closeSettingsSubscreen() {
+        document.querySelectorAll('.settings-subscreen').forEach(screen => {
+            screen.classList.remove('active');
+            setTimeout(() => {
+                screen.style.display = 'none';
+            }, 300);
+        });
     }
 
     openGamesModal() {
@@ -1342,10 +1396,14 @@ class MessengerApp {
             const usernameEl = document.getElementById('settings-username');
             const emailEl = document.getElementById('settings-email');
             const avatarEl = document.getElementById('settings-avatar');
+            const editAvatarEl = document.getElementById('edit-avatar');
+            const profileNameEl = document.getElementById('profile-name');
             
             if (usernameEl) usernameEl.value = this.currentUser.username;
             if (emailEl) emailEl.value = this.currentUser.email;
             if (avatarEl) avatarEl.src = this.currentUser.avatar || '/default-avatar.png';
+            if (editAvatarEl) editAvatarEl.src = this.currentUser.avatar || '/default-avatar.png';
+            if (profileNameEl) profileNameEl.textContent = this.currentUser.username;
         }
     }
 
@@ -1998,9 +2056,8 @@ class MessengerApp {
                 },
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
-                    text: '🎬 GIF',
-                    type: 'gif',
-                    fileData: { url: gifUrl, type: 'gif', mimetype: 'image/gif' }
+                    text: gifUrl, // Просто отправляем URL как текст
+                    type: 'text'
                 })
             });
             

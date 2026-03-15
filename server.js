@@ -920,7 +920,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'ID чата обязателен' });
         }
         
-        if (!text && !fileData) {
+        if (!text && !fileData && type !== 'game' && type !== 'gif') {
             return res.status(400).json({ success: false, message: 'Текст сообщения или файл обязательны' });
         }
         
@@ -1774,6 +1774,8 @@ io.on('connection', (socket) => {
     socket.on('call-user', async (data) => {
         const { chatId, callType } = data;
         
+        console.log('🔥 Получен запрос на звонок:', data);
+        
         if (!socket.userId) return;
         
         try {
@@ -1788,26 +1790,37 @@ io.on('connection', (socket) => {
                 
                 otherParticipants = participants
                     .filter(p => p.User.id !== socket.userId)
-                    .map(p => p.User.id);
+                    .map(p => ({ id: p.User.id, username: p.User.username }));
             } else {
                 const chat = chats.get(chatId);
                 if (chat) {
-                    otherParticipants = chat.participants.filter(id => id !== socket.userId);
+                    otherParticipants = chat.participants
+                        .filter(id => id !== socket.userId)
+                        .map(id => {
+                            const user = users.get(id);
+                            return { id, username: user ? user.username : 'Unknown' };
+                        });
                 }
             }
             
+            console.log('🔥 Участники чата для звонка:', otherParticipants);
+            
             // Notify other participants about incoming call
-            otherParticipants.forEach(userId => {
-                const userSocketId = onlineUsers.get(userId);
-                if (userSocketId) {
-                    io.to(userSocketId).emit('incoming-call', {
+            otherParticipants.forEach(participant => {
+                const userSockets = Array.from(io.sockets.sockets.values())
+                    .filter(s => s.userId === participant.id);
+                
+                console.log(`🔥 Отправляем уведомление пользователю ${participant.username} (${participant.id}), сокетов: ${userSockets.length}`);
+                
+                userSockets.forEach(userSocket => {
+                    userSocket.emit('incoming-call', {
                         callId: uuidv4(),
                         fromUserId: socket.userId,
-                        fromUsername: socket.username,
+                        fromUsername: socket.username || 'Unknown',
                         callType,
                         chatId
                     });
-                }
+                });
             });
             
         } catch (error) {
