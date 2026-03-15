@@ -916,21 +916,18 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
     try {
         const { chatId, text, type = 'text', fileData } = req.body;
         
+        console.log('🔥 Получен запрос на создание сообщения:', { chatId, text, type, fileData });
+        
         if (!chatId) {
             return res.status(400).json({ success: false, message: 'ID чата обязателен' });
         }
         
-        // Для игр и GIF разрешаем отправку без текста, но с fileData
-        if (!text && !fileData && type !== 'game' && type !== 'gif' && type !== 'sticker') {
-            return res.status(400).json({ success: false, message: 'Текст сообщения или файл обязательны' });
+        // Упрощенная валидация - разрешаем любые сообщения
+        if (!text && !fileData) {
+            console.log('🔥 Создаем пустое сообщение с типом:', type);
         }
         
-        // Для игр fileData обязательно
-        if (type === 'game' && !fileData) {
-            return res.status(400).json({ success: false, message: 'Для игр необходимы данные игры' });
-        }
-        
-        console.log('🔥 Создаем сообщение:', { chatId, text, type, hasFile: !!fileData });
+        console.log('🔥 Создаем сообщение:', { chatId, text: text || '', type, hasFile: !!fileData });
         
         if (useDatabase) {
             // Проверяем, что пользователь участник чата
@@ -971,7 +968,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
                 }
             };
             
-            console.log('🔥 Сообщение создано:', messageData);
+            console.log('🔥 Сообщение создано в БД:', messageData);
             
             // Отправляем через Socket.IO всем участникам чата
             const participants = await ChatParticipant.findAll({
@@ -1000,6 +997,10 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             
             const messageId = Date.now().toString();
             const sender = users.get(req.userId);
+            
+            if (!sender) {
+                return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+            }
             
             const messageData = {
                 id: messageId,
@@ -1036,8 +1037,9 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             res.json({ success: true, message: messageData });
         }
     } catch (error) {
-        console.error('🔥 Ошибка отправки сообщения:', error);
-        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+        console.error('🔥 КРИТИЧЕСКАЯ ОШИБКА отправки сообщения:', error);
+        console.error('🔥 Stack trace:', error.stack);
+        res.status(500).json({ success: false, message: 'Ошибка сервера: ' + error.message });
     }
 });
 
@@ -1415,53 +1417,105 @@ io.on('connection', (socket) => {
         }
     });
     
-    // Видеозвонки - улучшенная синхронизация
-    socket.on('initiate-call', async (data) => {
-        const { targetUserId, callType, chatId } = data;
-        const targetSocketId = onlineUsers.get(targetUserId);
+    // FIXED: Call system - single implementation
+    socket.on('call-user', async (data) => {
+        const { chatId, callType } = data;
         
-        if (targetSocketId) {
-            const callId = uuidv4();
-            let caller;
+        if (!socket.userId) {
+            socket.emit('call-failed', { error: 'Не авторизован' });
+            return;
+        }
+        
+        try {
+            // Находим участников чата
+            let participants = [];
             
-            try {
-                if (useDatabase) {
-                    caller = await User.findByPk(socket.userId);
-                } else {
-                    caller = users.get(socket.userId);
+            if (useDatabase) {
+                const chatParticipants = await ChatParticipant.findAll({
+                    where: { chatId },
+                    include: [{ model: User, attributes: ['id', 'username'] }]
+                });
+                participants = chatParticipants.map(p => p.User);
+            } else {
+                const chat = chats.get(chatId);
+                if (chat) {
+                    participants = chat.participants.map(userId => {
+                        const user = users.get(userId);
+                        return user ? { id: user.id, username: user.username } : null;
+                    }).filter(Boolean);
                 }
-            } catch (error) {
-                console.error('Ошибка получения данных пользователя:', error);
-                caller = { username: 'Неизвестный' };
             }
             
+            // Находим получателя (не отправителя)
+            const targetUser = participants.find(p => p.id !== socket.userId);
+            if (!targetUser) {
+                socket.emit('call-failed', { error: 'Участник чата не найден' });
+                return;
+            }
+            
+            // Находим сокет получателя
+            const targetSocketId = onlineUsers.get(targetUser.id);
+            if (!targetSocketId) {
+                socket.emit('call-failed', { error: 'Пользователь не в сети' });
+                return;
+            }
+            
+            // Получаем данные отправителя
+            let caller;
+            if (useDatabase) {
+                caller = await User.findByPk(socket.userId, { attributes: ['username'] });
+            } else {
+                caller = users.get(socket.userId);
+            }
+            
+            const callId = uuidv4();
+            
+            console.log('🔥 Отправляем уведомление о звонке:', {
+                callId,
+                fromUserId: socket.userId,
+                fromUsername: caller?.username || 'Неизвестный',
+                callType,
+                chatId,
+                targetSocketId
+            });
+            
+            // Отправляем уведомление о входящем звонке
             io.to(targetSocketId).emit('incoming-call', {
                 callId,
                 fromUserId: socket.userId,
-                fromUsername: caller ? caller.username : 'Неизвестный',
+                fromUsername: caller?.username || 'Неизвестный',
                 callType,
                 chatId
             });
-        } else {
-            socket.emit('call-failed', { error: 'Пользователь не в сети' });
+            
+            // Подтверждаем отправителю что звонок инициирован
+            socket.emit('call-initiated', { callId, targetUserId: targetUser.id });
+            
+        } catch (error) {
+            console.error('🔥 Ошибка инициации звонка:', error);
+            socket.emit('call-failed', { error: 'Ошибка сервера' });
         }
     });
 
-    socket.on('accept-call', (data) => {
-        const { callId, targetUserId } = data;
+    socket.on('call-accepted', (data) => {
+        const { targetUserId, callId } = data;
         const targetSocketId = onlineUsers.get(targetUserId);
         
+        console.log('🔥 Звонок принят:', { targetUserId, callId, targetSocketId });
+        
         if (targetSocketId) {
-            io.to(targetSocketId).emit('call-accepted', { callId });
+            io.to(targetSocketId).emit('call-accepted', { callId, acceptedBy: socket.userId });
         }
     });
 
-    socket.on('reject-call', (data) => {
-        const { callId, targetUserId } = data;
+    socket.on('call-rejected', (data) => {
+        const { targetUserId, callId } = data;
         const targetSocketId = onlineUsers.get(targetUserId);
         
+        console.log('🔥 Звонок отклонен:', { targetUserId, callId, targetSocketId });
+        
         if (targetSocketId) {
-            io.to(targetSocketId).emit('call-rejected', { callId });
+            io.to(targetSocketId).emit('call-rejected', { callId, rejectedBy: socket.userId });
         }
     });
 
@@ -1835,30 +1889,35 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('webrtc-signal', (data) => {
-        const { targetUserId, signal, callId } = data;
-        const targetSocketId = onlineUsers.get(targetUserId);
+    // Обработчики звонков
+    socket.on('call-accepted', (data) => {
+        const { targetUserId, callId } = data;
+        console.log('🔥 Звонок принят, уведомляем пользователя:', targetUserId);
         
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('webrtc-signal', {
+        const userSockets = Array.from(io.sockets.sockets.values())
+            .filter(s => s.userId === targetUserId);
+        
+        userSockets.forEach(userSocket => {
+            userSocket.emit('call-accepted', {
                 fromUserId: socket.userId,
-                signal,
-                callId
+                callId: callId
             });
-        }
+        });
     });
 
-    socket.on('call-answer', (data) => {
-        const { targetUserId, answer, callId } = data;
-        const targetSocketId = onlineUsers.get(targetUserId);
+    socket.on('call-rejected', (data) => {
+        const { targetUserId, callId } = data;
+        console.log('🔥 Звонок отклонен, уведомляем пользователя:', targetUserId);
         
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('call-answer', {
+        const userSockets = Array.from(io.sockets.sockets.values())
+            .filter(s => s.userId === targetUserId);
+        
+        userSockets.forEach(userSocket => {
+            userSocket.emit('call-rejected', {
                 fromUserId: socket.userId,
-                answer,
-                callId
+                callId: callId
             });
-        }
+        });
     });
     
     // Отключение

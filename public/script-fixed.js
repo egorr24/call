@@ -426,6 +426,9 @@ class MessengerApp {
         this.socket.on('game-updated', (data) => {
             this.handleGameUpdate(data);
         });
+
+        // Настраиваем обработчики звонков
+        this.setupWebRTCHandlers();
     }
 
     logout() {
@@ -998,8 +1001,9 @@ class MessengerApp {
             // Создаем экран видеозвонка
             this.createVideoCallScreen(stream, includeVideo);
             
-            // Простое уведомление о звонке без WebRTC
+            // Отправляем уведомление о звонке
             if (this.socket && this.currentChat) {
+                console.log('🔥 Отправляем уведомление о звонке в чат:', this.currentChat.id);
                 this.socket.emit('call-user', {
                     chatId: this.currentChat.id,
                     callType: includeVideo ? 'video' : 'audio'
@@ -1012,19 +1016,50 @@ class MessengerApp {
         }
     }
 
-    setupWebRTCHandlers(localStream) {
+    setupWebRTCHandlers() {
         if (!this.socket) return;
         
-        // Handle incoming call - простое уведомление
+        // Handle incoming call - показываем уведомление
         this.socket.on('incoming-call', (data) => {
+            console.log('🔥 Получено уведомление о входящем звонке:', data);
             const { callId, fromUserId, fromUsername, callType, chatId } = data;
             
             // Создаем красивое уведомление о звонке
             this.showCallNotification(fromUsername, callType, () => {
+                console.log('🔥 Звонок принят');
                 this.showNotification(`Принят ${callType === 'video' ? 'видео' : 'аудио'}звонок от ${fromUsername}`, 'success');
+                
+                // Уведомляем отправителя что звонок принят
+                this.socket.emit('call-accepted', {
+                    targetUserId: fromUserId,
+                    callId: callId
+                });
             }, () => {
+                console.log('🔥 Звонок отклонен');
                 this.showNotification('Звонок отклонен', 'info');
+                
+                // Уведомляем отправителя что звонок отклонен
+                this.socket.emit('call-rejected', {
+                    targetUserId: fromUserId,
+                    callId: callId
+                });
             });
+        });
+
+        // Обработка ответов на звонки
+        this.socket.on('call-accepted', (data) => {
+            console.log('🔥 Звонок принят:', data);
+            this.showNotification('Звонок принят!', 'success');
+        });
+
+        this.socket.on('call-rejected', (data) => {
+            console.log('🔥 Звонок отклонен:', data);
+            this.showNotification('Звонок отклонен', 'info');
+        });
+
+        this.socket.on('call-failed', (data) => {
+            console.log('🔥 Ошибка звонка:', data);
+            this.showNotification('Ошибка звонка: ' + (data.error || 'Неизвестная ошибка'), 'error');
         });
     }
 
@@ -1964,49 +1999,6 @@ class MessengerApp {
             return;
         }
         
-        let gameData = {};
-        
-        switch (gameType) {
-            case 'tic-tac-toe':
-                gameData = {
-                    type: 'tic-tac-toe',
-                    board: ['', '', '', '', '', '', '', '', ''],
-                    currentPlayer: 'X',
-                    players: [this.currentUser.id],
-                    status: 'waiting'
-                };
-                break;
-                
-            case 'word-game':
-                const words = ['ПРОГРАММИРОВАНИЕ', 'КОМПЬЮТЕР', 'ИНТЕРНЕТ', 'ТЕХНОЛОГИЯ', 'РАЗРАБОТКА'];
-                const word = words[Math.floor(Math.random() * words.length)];
-                gameData = {
-                    type: 'word-game',
-                    word: word,
-                    guessed: Array(word.length).fill('_'),
-                    guessedLetters: [],
-                    attempts: 6,
-                    status: 'active'
-                };
-                break;
-                
-            case 'quiz':
-                gameData = {
-                    type: 'quiz',
-                    questions: [
-                        {
-                            question: 'Какой язык программирования используется для веб-разработки?',
-                            options: ['Python', 'JavaScript', 'C++', 'Java'],
-                            correct: 1
-                        }
-                    ],
-                    currentQuestion: 0,
-                    scores: {},
-                    status: 'active'
-                };
-                break;
-        }
-        
         try {
             const response = await fetch('/api/messages', {
                 method: 'POST',
@@ -2016,9 +2008,8 @@ class MessengerApp {
                 },
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
-                    text: `🎮 Игра: ${this.getGameName(gameType)}`,
-                    type: 'game',
-                    fileData: gameData
+                    text: `🎮 Игра: ${this.getGameName(gameType)} начата!`,
+                    type: 'text'
                 })
             });
             
@@ -2027,7 +2018,8 @@ class MessengerApp {
                 this.closeModal('games-modal');
                 this.showNotification('Игра начата!', 'success');
             } else {
-                this.showNotification('Ошибка создания игры', 'error');
+                console.error('🔥 Ошибка создания игры:', data);
+                this.showNotification('Ошибка создания игры: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
             console.error('🔥 Ошибка создания игры:', error);
@@ -2189,273 +2181,7 @@ class MessengerApp {
             item.style.display = shouldShow ? 'flex' : 'none';
         });
     }
-
-    // GIF functionality
-    async loadGifs(searchTerm = '') {
-        const gifsContainer = document.querySelector('.gifs-container');
-        if (!gifsContainer) return;
-
-        try {
-            // Using Giphy API (you'll need to get a free API key)
-            const apiKey = 'YOUR_GIPHY_API_KEY'; // Replace with actual API key
-            const endpoint = searchTerm
-                ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(searchTerm)}&limit=20`
-                : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=20`;
-
-            // For now, show placeholder GIFs since we don't have API key
-            const placeholderGifs = [
-                'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
-                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
-                'https://media.giphy.com/media/3o6Zt4HU9uwXmXSAuI/giphy.gif',
-                'https://media.giphy.com/media/l0HlvtIPzPdt2usKs/giphy.gif'
-            ];
-
-            gifsContainer.innerHTML = '';
-
-            placeholderGifs.forEach(gifUrl => {
-                const gifItem = document.createElement('div');
-                gifItem.className = 'gif-item';
-                gifItem.innerHTML = `<img src="${gifUrl}" alt="GIF" loading="lazy">`;
-                gifItem.style.cssText = `
-                    cursor: pointer;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    transition: var(--transition-smooth);
-                `;
-
-                gifItem.addEventListener('click', () => {
-                    this.sendGifMessage(gifUrl);
-                });
-
-                gifsContainer.appendChild(gifItem);
-            });
-
-        } catch (error) {
-            console.error('🔥 Ошибка загрузки GIF:', error);
-            gifsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Ошибка загрузки GIF</p>';
-        }
-    }
-
-    async sendGifMessage(gifUrl) {
-        if (!this.currentChat) {
-            this.showNotification('Выберите чат для отправки GIF', 'error');
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    chatId: this.currentChat.id,
-                    text: '',
-                    type: 'gif',
-                    fileData: { url: gifUrl, type: 'gif' }
-                })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                document.getElementById('sticker-panel').style.display = 'none';
-                this.showNotification('GIF отправлен!', 'success');
-            } else {
-                this.showNotification('Ошибка отправки GIF', 'error');
-            }
-        } catch (error) {
-            console.error('🔥 Ошибка отправки GIF:', error);
-            this.showNotification('Ошибка отправки GIF', 'error');
-        }
-    }
-
-    // Drawing functionality
-    initializeDrawingCanvas() {
-        const canvas = document.getElementById('draw-canvas');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        let isDrawing = false;
-        let currentTool = 'pen';
-        let currentColor = '#667eea';
-        let currentSize = 3;
-
-        // Set canvas size
-        canvas.width = 400;
-        canvas.height = 300;
-
-        // Drawing functions
-        const startDrawing = (e) => {
-            isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        };
-
-        const draw = (e) => {
-            if (!isDrawing) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            ctx.lineWidth = currentSize;
-            ctx.lineCap = 'round';
-
-            if (currentTool === 'pen') {
-                ctx.globalCompositeOperation = 'source-over';
-                ctx.strokeStyle = currentColor;
-            } else if (currentTool === 'eraser') {
-                ctx.globalCompositeOperation = 'destination-out';
-            }
-
-            ctx.lineTo(x, y);
-            ctx.stroke();
-        };
-
-        const stopDrawing = () => {
-            isDrawing = false;
-            ctx.beginPath();
-        };
-
-        // Event listeners
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-
-        // Tool controls
-        document.querySelectorAll('.draw-tool').forEach(tool => {
-            tool.addEventListener('click', (e) => {
-                document.querySelectorAll('.draw-tool').forEach(t => t.classList.remove('active'));
-                e.target.classList.add('active');
-                currentTool = e.target.dataset.tool;
-            });
-        });
-
-        document.getElementById('draw-color')?.addEventListener('change', (e) => {
-            currentColor = e.target.value;
-        });
-
-        document.getElementById('draw-size')?.addEventListener('input', (e) => {
-            currentSize = e.target.value;
-        });
-
-        document.querySelector('.clear-canvas')?.addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        });
-
-        document.querySelector('.send-drawing')?.addEventListener('click', () => {
-            this.sendDrawing(canvas);
-        });
-
-        document.querySelector('.cancel-drawing')?.addEventListener('click', () => {
-            document.getElementById('draw-panel').style.display = 'none';
-        });
-    }
-
-    async sendDrawing(canvas) {
-        if (!this.currentChat) {
-            this.showNotification('Выберите чат для отправки рисунка', 'error');
-            return;
-        }
-
-        try {
-            // Convert canvas to blob
-            canvas.toBlob(async (blob) => {
-                const formData = new FormData();
-                formData.append('file', blob, 'drawing.png');
-                formData.append('chatId', this.currentChat.id);
-
-                const uploadResponse = await fetch('/api/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: formData
-                });
-
-                const uploadData = await uploadResponse.json();
-
-                if (uploadData.success) {
-                    await this.sendMessageWithFile({
-                        ...uploadData.file,
-                        originalName: 'Рисунок'
-                    });
-
-                    // Clear canvas and close panel
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    document.getElementById('draw-panel').style.display = 'none';
-
-                    this.showNotification('Рисунок отправлен!', 'success');
-                } else {
-                    this.showNotification('Ошибка отправки рисунка', 'error');
-                }
-            }, 'image/png');
-
-        } catch (error) {
-            console.error('🔥 Ошибка отправки рисунка:', error);
-            this.showNotification('Ошибка отправки рисунка', 'error');
-        }
-    }
-
-    // Game functionality
-    async startGame(gameType) {
-        if (!this.currentChat) {
-            this.showNotification('Выберите чат для игры', 'error');
-            return;
-        }
-
-        let gameData = {};
-
-        switch (gameType) {
-            case 'tic-tac-toe':
-                gameData = {
-                    type: 'tic-tac-toe',
-                    board: ['', '', '', '', '', '', '', '', ''],
-                    currentPlayer: 'X',
-                    players: [this.currentUser.id],
-                    status: 'waiting'
-                };
-                break;
-
-            case 'word-game':
-                const words = ['ПРОГРАММИРОВАНИЕ', 'КОМПЬЮТЕР', 'ИНТЕРНЕТ', 'ТЕХНОЛОГИЯ', 'РАЗРАБОТКА'];
-                const word = words[Math.floor(Math.random() * words.length)];
-                gameData = {
-                    type: 'word-game',
-                    word: word,
-                    guessed: Array(word.length).fill('_'),
-                    guessedLetters: [],
-                    attempts: 6,
-                    status: 'active'
-                };
-                break;
-
-            case 'quiz':
-                gameData = {
-                    type: 'quiz',
-                    questions: [
-                        {
-                            question: 'Какой язык программирования используется для веб-разработки?',
-                            options: ['Python', 'JavaScript', 'C++', 'Java'],
-                            correct: 1
-                        }
-                    ],
-                    currentQuestion: 0,
-                    scores: {},
-                    status: 'active'
-                };
-                break;
-        }
-
-        try {
-            const response = await fetch('/api/messages', {
+}
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2630,3 +2356,174 @@ MessengerApp.prototype.sendDrawing = async function(canvas) {
 const app = new MessengerApp();
 
 console.log('🔥 Flux Messenger загружен и готов к работе!');
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔥 Flux Messenger загружен и готов к работе!');
+    window.app = new MessengerApp();
+});
+
+// Add CSS for call notifications
+const callNotificationCSS = `
+.call-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--neon-green);
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 10000;
+    min-width: 300px;
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+    animation: slideIn 0.3s ease-out;
+}
+
+.call-notification h4 {
+    margin: 0 0 10px 0;
+    color: var(--neon-green);
+    font-family: var(--font-primary);
+}
+
+.call-notification p {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+}
+
+.call-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.call-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition-smooth);
+}
+
+.accept-call {
+    background: var(--neon-green);
+    color: var(--bg-primary);
+}
+
+.reject-call {
+    background: var(--neon-pink);
+    color: var(--bg-primary);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+`;
+
+// Add the CSS to the document
+const style = document.createElement('style');
+style.textContent = callNotificationCSS;
+document.head.appendChild(style);
+    // Sticker functionality
+    loadStickers() {
+        const stickersGrid = document.getElementById('stickers-grid');
+        if (!stickersGrid) return;
+        
+        const stickers = ['😀', '😂', '😍', '🤔', '😎', '🔥', '💯', '👍', '❤️', '🎉', '🚀', '⭐'];
+        
+        stickersGrid.innerHTML = '';
+        stickers.forEach(sticker => {
+            const stickerItem = document.createElement('div');
+            stickerItem.className = 'sticker-item';
+            stickerItem.textContent = sticker;
+            stickerItem.style.cssText = `
+                font-size: 2rem;
+                padding: 10px;
+                cursor: pointer;
+                border-radius: 8px;
+                transition: var(--transition-smooth);
+                text-align: center;
+            `;
+            
+            stickerItem.addEventListener('click', () => {
+                this.sendStickerMessage(sticker);
+            });
+            
+            stickersGrid.appendChild(stickerItem);
+        });
+    }
+
+    async sendStickerMessage(sticker) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки стикера', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: sticker,
+                    type: 'text'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const stickerPanel = document.getElementById('sticker-panel');
+                if (stickerPanel) stickerPanel.style.display = 'none';
+            } else {
+                this.showNotification('Ошибка отправки стикера', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка отправки стикера:', error);
+            this.showNotification('Ошибка отправки стикера', 'error');
+        }
+    }
+
+    toggleStickerPanel() {
+        const panel = document.getElementById('sticker-panel');
+        if (!panel) return;
+        
+        if (panel.style.display === 'none' || !panel.style.display) {
+            panel.style.display = 'block';
+            this.loadStickers();
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    togglePollPanel() {
+        const panel = document.getElementById('poll-panel');
+        if (!panel) return;
+        
+        if (panel.style.display === 'none' || !panel.style.display) {
+            panel.style.display = 'block';
+        } else {
+            panel.style.display = 'none';
+        }
+    }
+
+    toggleDrawPanel() {
+        const panel = document.getElementById('draw-panel');
+        if (!panel) return;
+        
+        if (panel.style.display === 'none' || !panel.style.display) {
+            panel.style.display = 'block';
+        } else {
+            panel.style.display = 'none';
+        }
+    }

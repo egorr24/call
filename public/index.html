@@ -23,7 +23,57 @@
     <title>🔥 Flux Messenger</title>
     <link rel="stylesheet" href="cyberpunk.css?v=3.0">
     <link rel="stylesheet" href="new-features.css?v=3.0">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Используем локальную версию Font Awesome -->
+    <style>
+        /* Базовые иконки Font Awesome */
+        .fas, .fa {
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-style: normal;
+            font-variant: normal;
+            text-rendering: auto;
+            line-height: 1;
+        }
+        
+        /* Если Font Awesome не загрузился, используем эмодзи */
+        .fa-bolt::before { content: "⚡"; }
+        .fa-sign-in-alt::before { content: "🔑"; }
+        .fa-user-plus::before { content: "👤"; }
+        .fa-envelope::before { content: "📧"; }
+        .fa-lock::before { content: "🔒"; }
+        .fa-user::before { content: "👤"; }
+        .fa-rocket::before { content: "🚀"; }
+        .fa-star::before { content: "⭐"; }
+        .fa-circle::before { content: "🟢"; }
+        .fa-cog::before { content: "⚙️"; }
+        .fa-sign-out-alt::before { content: "🚪"; }
+        .fa-search::before { content: "🔍"; }
+        .fa-comments::before { content: "💬"; }
+        .fa-gamepad::before { content: "🎮"; }
+        .fa-video::before { content: "📹"; }
+        .fa-phone::before { content: "📞"; }
+        .fa-paperclip::before { content: "📎"; }
+        .fa-camera::before { content: "📷"; }
+        .fa-smile::before { content: "😊"; }
+        .fa-poll::before { content: "📊"; }
+        .fa-paint-brush::before { content: "🎨"; }
+        .fa-microphone::before { content: "🎤"; }
+        .fa-paper-plane::before { content: "✈️"; }
+        .fa-times::before { content: "❌"; }
+        .fa-check::before { content: "✅"; }
+        .fa-arrow-left::before { content: "⬅️"; }
+        .fa-chevron-right::before { content: "➡️"; }
+        .fa-palette::before { content: "🎨"; }
+        .fa-shield-alt::before { content: "🛡️"; }
+        .fa-bell::before { content: "🔔"; }
+        .fa-globe::before { content: "🌐"; }
+        .fa-hdd::before { content: "💾"; }
+        .fa-info-circle::before { content: "ℹ️"; }
+        .fa-phone-slash::before { content: "📵"; }
+        .fa-desktop::before { content: "🖥️"; }
+        .fa-microphone-slash::before { content: "🎤"; }
+        .fa-video-slash::before { content: "📹"; }
+    </style>
 </head>
 <body>
     <!-- 🎨 Экран авторизации -->
