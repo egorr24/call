@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Buttons</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { margin: 10px; padding: 10px 20px; }
+        .test-section { margin: 20px 0; border: 1px solid #ccc; padding: 15px; }
+    </style>
+</head>
+<body>
+    <h1>Тест кнопок мессенджера</h1>
+    
+    <div class="test-section">
+        <h3>Авторизация</h3>
+        <div id="login-form">
+            <input type="email" id="login-email" placeholder="Email" value="test@test.com">
+            <input type="password" id="login-password" placeholder="Пароль" value="123456">
+            <button class="auth-btn">Войти</button>
+        </div>
+        
+        <div id="register-form" style="display:none;">
+            <input type="text" id="register-username" placeholder="Имя" value="TestUser">
+            <input type="email" id="register-email" placeholder="Email" value="test@test.com">
+            <input type="password" id="register-password" placeholder="Пароль" value="123456">
+            <button class="auth-btn">Зарегистрироваться</button>
+        </div>
+        
+        <button onclick="toggleForm()">Переключить форму</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Кнопки заголовка</h3>
+        <div class="header-actions">
+            <button title="Статус">Статус</button>
+            <button title="Найти пользователей">Найти пользователей</button>
+            <button title="Настройки">Настройки</button>
+            <button title="Выйти">Выйти</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Кнопки ввода сообщений</h3>
+        <div class="message-input">
+            <button id="sticker-btn" title="Стикеры и GIF">Стикеры</button>
+            <button id="poll-btn" title="Создать опрос">Опрос</button>
+            <button id="draw-btn" title="Совместное рисование">Рисование</button>
+            <button id="voice-btn" title="Голосовое сообщение">Голос</button>
+            <input type="text" id="message-input" placeholder="Сообщение">
+            <button class="send-btn" title="Отправить">Отправить</button>
+        </div>
+    </div>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+    
+    <script>
+        // Простая имитация класса мессенджера для тестирования
+        class TestMessenger {
+            constructor() {
+                this.currentChat = 'test-chat';
+                this.token = 'test-token';
+                this.init();
+            }
+            
+            init() {
+                document.addEventListener('click', (e) => {
+                    const target = e.target.closest('button') || e.target;
+                    
+                    // Авторизация
+                    if (target.matches('#login-form .auth-btn')) {
+                        e.preventDefault();
+                        this.login();
+                    } else if (target.matches('#register-form .auth-btn')) {
+                        e.preventDefault();
+                        this.register();
+                    }
+                    
+                    // Кнопки заголовка
+                    else if (target.matches('.header-actions button[title="Статус"]')) {
+                        this.showResult('Статус clicked');
+                    } else if (target.matches('.header-actions button[title="Найти пользователей"]')) {
+                        this.showResult('Найти пользователей clicked');
+                    } else if (target.matches('.header-actions button[title="Настройки"]')) {
+                        this.showResult('Настройки clicked');
+                    } else if (target.matches('.header-actions button[title="Выйти"]')) {
+                        this.showResult('Выйти clicked');
+                    }
+                    
+                    // Кнопки ввода сообщений
+                    else if (target.matches('#sticker-btn')) {
+                        this.showResult('Стикеры clicked');
+                    } else if (target.matches('#poll-btn')) {
+                        this.showResult('Опрос clicked');
+                    } else if (target.matches('#draw-btn')) {
+                        this.showResult('Рисование clicked');
+                    } else if (target.matches('#voice-btn')) {
+                        this.showResult('Голос clicked');
+                    } else if (target.matches('.send-btn')) {
+                        e.preventDefault();
+                        this.showResult('Отправить clicked');
+                    }
+                });
+            }
+            
+            login() {
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                this.showResult(`Login: ${email} / ${password}`);
+            }
+            
+            register() {
+                const username = document.getElementById('register-username').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                this.showResult(`Register: ${username} / ${email} / ${password}`);
+            }
+            
+            showResult(message) {
+                document.getElementById('result').innerHTML = `<strong>Результат:</strong> ${message}`;
+            }
+        }
+        
+        // Инициализация тестового мессенджера
+        const testMessenger = new TestMessenger();
+        
+        function toggleForm() {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            
+            if (loginForm.style.display === 'none') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>
