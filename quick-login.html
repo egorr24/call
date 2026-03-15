@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Login - Flux Messenger</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #0a0a0f; 
+            color: white; 
+            padding: 50px; 
+            text-align: center;
+        }
+        .login-box {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        button {
+            background: #00ff88;
+            color: #0a0a0f;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #00cc66;
+        }
+        .info {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>🔥 Flux Messenger - Quick Login</h1>
+        
+        <div class="info">
+            <h3>Тестовый аккаунт:</h3>
+            <p><strong>Email:</strong> test@test.com</p>
+            <p><strong>Password:</strong> password</p>
+        </div>
+        
+        <button onclick="quickLogin()">🚀 Быстрый вход</button>
+        <button onclick="goToMain()">📱 Перейти к мессенджеру</button>
+        
+        <div id="status" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        async function quickLogin() {
+            const status = document.getElementById('status');
+            status.innerHTML = '⏳ Входим...';
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: 'test@test.com', 
+                        password: 'password' 
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    status.innerHTML = '✅ Вход успешен! Переходим...';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                } else {
+                    status.innerHTML = '❌ Ошибка: ' + (data.error || 'Неизвестная ошибка');
+                }
+            } catch (error) {
+                status.innerHTML = '❌ Ошибка подключения: ' + error.message;
+            }
+        }
+        
+        function goToMain() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

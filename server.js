@@ -243,6 +243,23 @@ const messages = new Map();
 // Флаг использования базы данных
 let useDatabase = false;
 
+// Инициализация тестового пользователя для отладки
+const initTestUser = () => {
+    const testUserId = 'test-user-123';
+    const testUser = {
+        id: testUserId,
+        username: 'TestUser',
+        email: 'test@test.com',
+        password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=TestUser',
+        lastSeen: new Date(),
+        createdAt: new Date()
+    };
+    
+    users.set(testUserId, testUser);
+    console.log('🔥 Тестовый пользователь создан:', testUser.email, '/ password');
+};
+
 // API Routes
 
 // Регистрация
@@ -334,16 +351,19 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log('🔥 Попытка входа:', email);
         
         if (useDatabase) {
             // Используем PostgreSQL
             const user = await User.findOne({ where: { email } });
             if (!user) {
+                console.log('🔥 Пользователь не найден в БД');
                 return res.status(400).json({ error: 'Неверные данные' });
             }
             
             const isValidPassword = await bcrypt.compare(password, user.password);
             if (!isValidPassword) {
+                console.log('🔥 Неверный пароль');
                 return res.status(400).json({ error: 'Неверные данные' });
             }
             
@@ -363,13 +383,16 @@ app.post('/api/login', async (req, res) => {
             });
         } else {
             // Используем Map (fallback)
+            console.log('🔥 Ищем пользователя в Map, всего пользователей:', users.size);
             const user = Array.from(users.values()).find(u => u.email === email);
             if (!user) {
+                console.log('🔥 Пользователь не найден в Map');
                 return res.status(400).json({ error: 'Неверные данные' });
             }
             
             const isValidPassword = await bcrypt.compare(password, user.password);
             if (!isValidPassword) {
+                console.log('🔥 Неверный пароль');
                 return res.status(400).json({ error: 'Неверные данные' });
             }
             
@@ -377,6 +400,7 @@ app.post('/api/login', async (req, res) => {
             
             const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
             
+            console.log('🔥 Вход успешен, токен создан');
             res.json({
                 success: true,
                 token,
@@ -484,10 +508,13 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
 // Получить информацию о текущем пользователе
 app.get('/api/me', authenticateToken, async (req, res) => {
     try {
+        console.log('🔥 Запрос /api/me от пользователя:', req.userId);
+        
         if (useDatabase) {
             // Используем PostgreSQL
             const user = await User.findByPk(req.userId);
             if (!user) {
+                console.log('🔥 Пользователь не найден в БД');
                 return res.status(404).json({ error: 'Пользователь не найден' });
             }
             
@@ -502,11 +529,14 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             });
         } else {
             // Используем Map (fallback)
+            console.log('🔥 Ищем пользователя в Map, всего пользователей:', users.size);
             const user = users.get(req.userId);
             if (!user) {
+                console.log('🔥 Пользователь не найден в Map');
                 return res.status(404).json({ error: 'Пользователь не найден' });
             }
             
+            console.log('🔥 Пользователь найден:', user.username);
             res.json({
                 success: true,
                 user: {
@@ -1968,6 +1998,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Quick login page для отладки
+app.get('/quick-login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'quick-login.html'));
+});
+
 // Очистка старых комнат каждые 30 минут
 setInterval(() => {
     const now = Date.now();
@@ -2016,6 +2051,11 @@ async function startServer() {
             console.log(`🚀 Flux Messenger запущен на порту ${PORT}`);
             console.log(`📊 База данных: ${useDatabase ? 'PostgreSQL' : 'Memory (fallback)'}`);
             console.log(`🌐 Режим: ${process.env.NODE_ENV || 'development'}`);
+            
+            // Инициализируем тестового пользователя если используем fallback
+            if (!useDatabase) {
+                initTestUser();
+            }
         });
         
     } catch (error) {

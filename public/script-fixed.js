@@ -281,6 +281,8 @@ class MessengerApp {
             return;
         }
 
+        console.log('🔥 Попытка входа для:', email);
+
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
@@ -288,11 +290,14 @@ class MessengerApp {
                 body: JSON.stringify({ email, password })
             });
 
+            console.log('🔥 Ответ сервера на вход:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные ответа:', data);
             
             if (data.success) {
                 this.currentUser = data.user;
                 localStorage.setItem('token', data.token);
+                console.log('🔥 Токен сохранен:', data.token);
                 this.showMainScreen();
                 this.connectSocket();
                 this.showNotification('Вход выполнен успешно!', 'success');
@@ -352,27 +357,37 @@ class MessengerApp {
 
     checkAuthStatus() {
         const token = localStorage.getItem('token');
+        console.log('🔥 Проверяем авторизацию, токен:', token ? 'есть' : 'нет');
         
         if (token) {
+            console.log('🔥 Отправляем запрос на /api/me');
             fetch('/api/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('🔥 Ответ от /api/me:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('🔥 Данные от /api/me:', data);
                 if (data.success) {
                     this.currentUser = data.user;
+                    console.log('🔥 Пользователь найден, показываем главный экран');
                     this.showMainScreen();
                     this.connectSocket();
                 } else {
+                    console.log('🔥 Токен недействителен, удаляем');
                     localStorage.removeItem('token');
                     this.showAuthScreen();
                 }
             })
             .catch((error) => {
+                console.error('🔥 Ошибка при проверке токена:', error);
                 localStorage.removeItem('token');
                 this.showAuthScreen();
             });
         } else {
+            console.log('🔥 Токена нет, показываем экран авторизации');
             this.showAuthScreen();
         }
     }
