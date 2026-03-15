@@ -251,7 +251,9 @@ class MessengerApp {
             };
             input.click();
         }
-    }
+        
+        // Modal handling
+        if (modal && modal.style.display === 'flex') {
             if (target.classList.contains('close-btn') || target.closest('.close-btn')) {
                 modal.style.display = 'none';
                 return;
@@ -337,6 +339,7 @@ class MessengerApp {
             
             return;
         }
+    }
         
         // Auth buttons
         if (target.classList.contains('tab-btn')) {
