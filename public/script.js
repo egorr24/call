@@ -120,6 +120,12 @@ class MessengerApp {
                 this.toggleStatus();
             }
             
+            // Test button for adding messages
+            else if (target.textContent && target.textContent.includes('Тест сообщений')) {
+                console.log('🔥 Клик по test messages');
+                this.addTestMessages();
+            }
+            
             // Close buttons for modals
             else if (target.classList.contains('close-btn')) {
                 console.log('🔥 Клик по close-btn');
@@ -459,7 +465,7 @@ class MessengerApp {
             
             chatItem.innerHTML = `
                 <div class="chat-avatar">
-                    <img src="${chat.avatar || '/default-avatar.png'}" alt="${chat.name}">
+                    <img src="${chat.avatar || this.getDefaultAvatar(chat.name)}" alt="${chat.name}">
                     <div class="status-indicator ${chat.isOnline ? 'online' : 'offline'}"></div>
                 </div>
                 <div class="chat-info">
@@ -502,7 +508,7 @@ class MessengerApp {
         const userName = document.getElementById('user-name');
         
         if (userAvatar) {
-            userAvatar.src = this.currentUser.avatar || '/default-avatar.png';
+            userAvatar.src = this.currentUser.avatar || this.getDefaultAvatar(this.currentUser.username);
             userAvatar.alt = this.currentUser.username;
         }
         
@@ -528,6 +534,22 @@ class MessengerApp {
         } else {
             return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
         }
+    }
+    
+    getDefaultAvatar(name) {
+        // Создаем SVG аватар с первой буквой имени
+        const firstLetter = (name || 'U').charAt(0).toUpperCase();
+        const colors = ['#FF69B4', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+        const color = colors[name ? name.charCodeAt(0) % colors.length : 0];
+        
+        const svg = `
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="20" r="20" fill="${color}"/>
+                <text x="20" y="26" text-anchor="middle" fill="white" font-size="16" font-family="Arial">${firstLetter}</text>
+            </svg>
+        `;
+        
+        return 'data:image/svg+xml;base64,' + btoa(svg);
     }
 
     selectChat(chat) {
@@ -561,7 +583,7 @@ class MessengerApp {
         
         if (chatName) chatName.textContent = chat.name;
         if (chatStatus) chatStatus.textContent = chat.isOnline ? 'в сети' : 'не в сети';
-        if (chatAvatar) chatAvatar.src = chat.avatar || '/default-avatar.png';
+        if (chatAvatar) chatAvatar.src = chat.avatar || this.getDefaultAvatar(chat.name);
         
         // Показываем область сообщений
         if (messagesArea) {
@@ -812,6 +834,41 @@ class MessengerApp {
         } else {
             this.startVoiceRecording();
         }
+    }
+    
+    // Добавляем тестовые сообщения для демонстрации
+    addTestMessages() {
+        if (!this.currentChat) return;
+        
+        const testMessages = [
+            {
+                id: 'test-1',
+                text: 'Привет! Как дела?',
+                senderId: 'other-user',
+                senderName: this.currentChat.name,
+                createdAt: new Date(Date.now() - 300000).toISOString(), // 5 минут назад
+                chatId: this.currentChat.id
+            },
+            {
+                id: 'test-2', 
+                text: 'Отлично! А у тебя как?',
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.username,
+                createdAt: new Date(Date.now() - 240000).toISOString(), // 4 минуты назад
+                chatId: this.currentChat.id
+            },
+            {
+                id: 'test-3',
+                text: 'Тоже хорошо! Работаю над новым проектом 🚀',
+                senderId: 'other-user', 
+                senderName: this.currentChat.name,
+                createdAt: new Date(Date.now() - 180000).toISOString(), // 3 минуты назад
+                chatId: this.currentChat.id
+            }
+        ];
+        
+        this.renderMessages(testMessages);
+        this.showNotification('Добавлены тестовые сообщения', 'info');
     }
 
     startVoiceRecording() {
@@ -1141,19 +1198,19 @@ class MessengerApp {
             {
                 id: 'mock-1',
                 username: 'Alice',
-                avatar: null,
+                avatar: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNGRjY5QjQiLz4KPHRleHQgeD0iMjAiIHk9IjI2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIxNiIgZm9udC1mYW1pbHk9IkFyaWFsIj5BPC90ZXh0Pgo8L3N2Zz4K',
                 isOnline: true
             },
             {
                 id: 'mock-2', 
                 username: 'Bob',
-                avatar: null,
+                avatar: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiMzQjgyRjYiLz4KPHRleHQgeD0iMjAiIHk9IjI2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIxNiIgZm9udC1mYW1pbHk9IkFyaWFsIj5CPC90ZXh0Pgo8L3N2Zz4K',
                 isOnline: false
             },
             {
                 id: 'mock-3',
                 username: 'Charlie',
-                avatar: null,
+                avatar: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiMxMEI5ODEiLz4KPHRleHQgeD0iMjAiIHk9IjI2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSIgZm9udC1zaXplPSIxNiIgZm9udC1mYW1pbHk9IkFyaWFsIj5DPC90ZXh0Pgo8L3N2Zz4K',
                 isOnline: true
             }
         ];
@@ -1180,7 +1237,7 @@ class MessengerApp {
             userItem.className = 'user-item';
             userItem.innerHTML = `
                 <div class="user-avatar">
-                    <img src="${user.avatar || '/default-avatar.png'}" alt="${user.username}">
+                    <img src="${user.avatar || this.getDefaultAvatar(user.username)}" alt="${user.username}">
                     <div class="status-indicator ${user.isOnline ? 'online' : 'offline'}"></div>
                 </div>
                 <div class="user-info">
@@ -1304,7 +1361,7 @@ class MessengerApp {
         
         chatItem.innerHTML = `
             <div class="chat-avatar">
-                <img src="${chat.avatar || '/default-avatar.png'}" alt="${chat.name}">
+                <img src="${chat.avatar || this.getDefaultAvatar(chat.name)}" alt="${chat.name}">
                 <div class="status-indicator ${chat.isOnline ? 'online' : 'offline'}"></div>
             </div>
             <div class="chat-info">
@@ -1337,7 +1394,7 @@ class MessengerApp {
         const settingsEmail = document.getElementById('settings-email');
         
         if (settingsAvatar) {
-            settingsAvatar.src = this.currentUser.avatar || '/default-avatar.png';
+            settingsAvatar.src = this.currentUser.avatar || this.getDefaultAvatar(this.currentUser.username);
         }
         
         if (settingsUsername) {
