@@ -531,26 +531,26 @@ app.get('/api/users', authenticateToken, async (req, res) => {
                 id: user.id,
                 username: user.username,
                 avatar: user.avatar,
-                online: onlineUsers.has(user.id),
+                isOnline: onlineUsers.has(user.id),
                 lastSeen: user.lastSeen
             }));
             
-            res.json(userList);
+            res.json({ success: true, users: userList });
         } else {
             // Используем Map (fallback)
             const userList = Array.from(users.values()).map(user => ({
                 id: user.id,
                 username: user.username,
                 avatar: user.avatar,
-                online: onlineUsers.has(user.id),
+                isOnline: onlineUsers.has(user.id),
                 lastSeen: user.lastSeen
             })).filter(user => user.id !== req.userId);
             
-            res.json(userList);
+            res.json({ success: true, users: userList });
         }
     } catch (error) {
         console.error('Ошибка получения пользователей:', error);
-        res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
 

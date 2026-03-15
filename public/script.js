@@ -388,9 +388,9 @@ class MessengerApp {
     }
 
     renderChatList(chats) {
-        const chatList = document.getElementById('chat-list');
+        const chatList = document.getElementById('chats-list');
         if (!chatList) {
-            console.warn('🔥 Элемент chat-list не найден');
+            console.warn('🔥 Элемент chats-list не найден');
             return;
         }
         
@@ -426,9 +426,9 @@ class MessengerApp {
     }
 
     renderEmptyChatList() {
-        const chatList = document.getElementById('chat-list');
+        const chatList = document.getElementById('chats-list');
         if (!chatList) {
-            console.warn('🔥 Элемент chat-list не найден');
+            console.warn('🔥 Элемент chats-list не найден');
             return;
         }
         
@@ -615,18 +615,24 @@ class MessengerApp {
 
     // Modal functions
     openStatusModal() {
+        console.log('🔥 Пытаемся открыть статус');
         const modal = document.getElementById('status-modal');
+        console.log('🔥 Модальное окно статуса:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            console.log('🔥 Модальное окно статуса открыто');
         } else {
             console.warn('🔥 Модальное окно статуса не найдено');
         }
     }
 
     openUsersModal() {
+        console.log('🔥 Пытаемся открыть поиск пользователей');
         const modal = document.getElementById('users-modal');
+        console.log('🔥 Модальное окно пользователей:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            console.log('🔥 Модальное окно пользователей открыто');
             this.loadUsers();
         } else {
             console.warn('🔥 Модальное окно пользователей не найдено');
@@ -634,9 +640,12 @@ class MessengerApp {
     }
 
     openSettingsModal() {
+        console.log('🔥 Пытаемся открыть настройки');
         const modal = document.getElementById('settings-modal');
+        console.log('🔥 Модальное окно настроек:', modal);
         if (modal) {
             modal.style.display = 'flex';
+            console.log('🔥 Модальное окно настроек открыто');
             this.loadUserSettings();
         } else {
             console.warn('🔥 Модальное окно настроек не найдено');
@@ -834,22 +843,36 @@ class MessengerApp {
 
     // Additional methods for new features
     async loadUsers() {
+        console.log('🔥 Загружаем пользователей...');
         try {
             const response = await fetch('/api/users', {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
+            
+            console.log('🔥 Ответ сервера пользователей:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные пользователей:', data);
             
             if (data.success) {
                 this.renderUsersList(data.users);
+            } else {
+                console.error('🔥 Ошибка загрузки пользователей:', data.message);
+                this.showNotification('Ошибка загрузки пользователей: ' + (data.message || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при загрузке пользователей:', error);
             this.showNotification('Ошибка загрузки пользователей', 'error');
         }
     }
 
     renderUsersList(users) {
+        console.log('🔥 Отображаем пользователей:', users.length);
         const usersList = document.getElementById('users-list');
+        if (!usersList) {
+            console.warn('🔥 Элемент users-list не найден');
+            return;
+        }
+        
         usersList.innerHTML = '';
         
         users.forEach(user => {
@@ -868,6 +891,8 @@ class MessengerApp {
             `;
             usersList.appendChild(userItem);
         });
+        
+        console.log('🔥 Пользователи отображены');
     }
 
     async startChat(userId) {
