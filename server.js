@@ -1,3 +1,6 @@
+// Загружаем переменные окружения
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -591,6 +594,279 @@ app.get('/api/users', authenticateToken, async (req, res) => {
         }
     } catch (error) {
         console.error('Ошибка получения пользователей:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Поиск пользователей
+app.get('/api/users/search', authenticateToken, async (req, res) => {
+    try {
+        const { q } = req.query;
+        
+        if (!q || q.trim().length < 2) {
+            return res.json({ success: true, users: [] });
+        }
+        
+        const searchQuery = q.trim().toLowerCase();
+        
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const foundUsers = await User.findAll({
+                where: {
+                    [Op.and]: [
+                        {
+                            id: {
+                                [Op.ne]: req.userId // Исключаем текущего пользователя
+                            }
+                        },
+                        {
+                            [Op.or]: [
+                                {
+                                    username: {
+                                        [Op.iLike]: `%${searchQuery}%`
+                                    }
+                                },
+                                {
+                                    email: {
+                                        [Op.iLike]: `%${searchQuery}%`
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                attributes: ['id', 'username', 'avatar', 'lastSeen'],
+                limit: 20,
+                order: [['username', 'ASC']]
+            });
+            
+            const userList = foundUsers.map(user => ({
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+                isOnline: onlineUsers.has(user.id),
+                lastSeen: user.lastSeen
+            }));
+            
+            res.json({ success: true, users: userList });
+        } else {
+            // Используем Map (fallback)
+            const userList = Array.from(users.values())
+                .filter(user => 
+                    user.id !== req.userId && 
+                    (user.username.toLowerCase().includes(searchQuery) || 
+                     user.email.toLowerCase().includes(searchQuery))
+                )
+                .map(user => ({
+                    id: user.id,
+                    username: user.username,
+                    avatar: user.avatar,
+                    isOnline: onlineUsers.has(user.id),
+                    lastSeen: user.lastSeen
+                }))
+                .slice(0, 20);
+            
+            res.json({ success: true, users: userList });
+        }
+    } catch (error) {
+        console.error('Ошибка поиска пользователей:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Рекомендуемые пользователи
+app.get('/api/users/recommended', authenticateToken, async (req, res) => {
+    try {
+        if (useDatabase) {
+            // Используем PostgreSQL - возвращаем последних зарегистрированных пользователей
+            const recommendedUsers = await User.findAll({
+                where: {
+                    id: {
+                        [Op.ne]: req.userId // Исключаем текущего пользователя
+                    }
+                },
+                attributes: ['id', 'username', 'avatar', 'lastSeen'],
+                limit: 10,
+                order: [['createdAt', 'DESC']]
+            });
+            
+            const userList = recommendedUsers.map(user => ({
+                id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+                isOnline: onlineUsers.has(user.id),
+                lastSeen: user.lastSeen
+            }));
+            
+            res.json({ success: true, users: userList });
+        } else {
+            // Используем Map (fallback) - возвращаем всех пользователей кроме текущего
+            const userList = Array.from(users.values())
+                .filter(user => user.id !== req.userId)
+                .map(user => ({
+                    id: user.id,
+                    username: user.username,
+                    avatar: user.avatar,
+                    isOnline: onlineUsers.has(user.id),
+                    lastSeen: user.lastSeen
+                }))
+                .slice(0, 10);
+            
+            res.json({ success: true, users: userList });
+        }
+    } catch (error) {
+        console.error('Ошибка получения рекомендаций:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Обновление профиля пользователя
+app.put('/api/profile/update', authenticateToken, async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || username.trim().length < 2) {
+            return res.status(400).json({ success: false, message: 'Имя пользователя должно содержать минимум 2 символа' });
+        }
+        
+        if (useDatabase) {
+            // Используем PostgreSQL
+            const user = await User.findByPk(req.userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+            }
+            
+            // Проверяем уникальность имени пользователя
+            const existingUser = await User.findOne({
+                where: {
+                    username: username.trim(),
+                    id: { [Op.ne]: req.userId }
+                }
+            });
+            
+            if (existingUser) {
+                return res.status(400).json({ success: false, message: 'Имя пользователя уже занято' });
+            }
+            
+            // Обновляем данные
+            const updateData = { username: username.trim() };
+            if (password && password.length >= 6) {
+                updateData.password = await bcrypt.hash(password, 10);
+            }
+            
+            await user.update(updateData);
+            
+            res.json({ 
+                success: true, 
+                message: 'Профиль обновлен',
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        } else {
+            // Используем Map (fallback)
+            const user = users.get(req.userId);
+            if (!user) {
+                return res.status(404).json({ success: false, message: 'Пользователь не найден' });
+            }
+            
+            // Проверяем уникальность имени пользователя
+            const existingUser = Array.from(users.values()).find(u => 
+                u.username === username.trim() && u.id !== req.userId
+            );
+            
+            if (existingUser) {
+                return res.status(400).json({ success: false, message: 'Имя пользователя уже занято' });
+            }
+            
+            // Обновляем данные
+            user.username = username.trim();
+            if (password && password.length >= 6) {
+                user.password = await bcrypt.hash(password, 10);
+            }
+            
+            users.set(req.userId, user);
+            
+            res.json({ 
+                success: true, 
+                message: 'Профиль обновлен',
+                user: {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    avatar: user.avatar
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка обновления профиля:', error);
+        res.status(500).json({ success: false, message: 'Ошибка сервера' });
+    }
+});
+
+// Получить сообщения чата (альтернативный endpoint)
+app.get('/api/messages/:chatId', authenticateToken, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        
+        if (useDatabase) {
+            // Используем PostgreSQL
+            
+            // Проверяем доступ к чату
+            const chatParticipant = await ChatParticipant.findOne({
+                where: {
+                    chatId: chatId,
+                    userId: req.userId
+                }
+            });
+            
+            if (!chatParticipant) {
+                return res.status(403).json({ success: false, message: 'Нет доступа к этому чату' });
+            }
+            
+            // Получаем сообщения
+            const chatMessages = await Message.findAll({
+                where: { chatId: chatId },
+                include: [{
+                    model: User,
+                    as: 'sender',
+                    attributes: ['id', 'username', 'avatar']
+                }],
+                order: [['createdAt', 'ASC']],
+                limit: 100
+            });
+            
+            const messages = chatMessages.map(msg => ({
+                id: msg.id,
+                chatId: msg.chatId,
+                senderId: msg.senderId,
+                senderName: msg.sender ? msg.sender.username : 'Unknown',
+                text: msg.text,
+                type: msg.type,
+                fileData: msg.fileData,
+                createdAt: msg.createdAt,
+                reactions: msg.reactions || {},
+                replyTo: msg.replyTo
+            }));
+            
+            res.json({ success: true, messages });
+        } else {
+            // Используем Map (fallback)
+            
+            // Проверяем доступ к чату
+            const chat = chats.get(chatId);
+            if (!chat || !chat.participants.includes(req.userId)) {
+                return res.status(403).json({ success: false, message: 'Нет доступа к этому чату' });
+            }
+            
+            const chatMessages = messages.get(chatId) || [];
+            res.json({ success: true, messages: chatMessages });
+        }
+    } catch (error) {
+        console.error('Ошибка получения сообщений:', error);
         res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });
