@@ -93,7 +93,56 @@ class MessengerApp {
                 return;
             }
             
-            // Кнопка изменить аватар
+            // Обработка современных настроек
+            if (modal.id === 'settings-modal') {
+                // Кнопка назад в подэкране
+                if (target.classList.contains('back-btn') || target.closest('.back-btn')) {
+                    this.closeSettingsSubscreen();
+                    return;
+                }
+                
+                // Клик по элементу настроек
+                const settingItem = target.closest('.setting-item');
+                if (settingItem) {
+                    const setting = settingItem.dataset.setting;
+                    if (setting) {
+                        this.openSettingsSubscreen(setting);
+                        return;
+                    }
+                }
+                
+                // Изменение аватара
+                if (target.classList.contains('avatar-edit-btn') || target.closest('.avatar-edit-btn') || 
+                    target.classList.contains('large-avatar') || target.closest('.large-avatar')) {
+                    const avatarInput = document.getElementById('avatar-input');
+                    if (avatarInput) {
+                        avatarInput.click();
+                    }
+                    return;
+                }
+                
+                // Кнопка сохранить
+                if (target.classList.contains('save-btn') || target.closest('.save-btn')) {
+                    this.saveSettings();
+                    return;
+                }
+                
+                // Выбор темы
+                const themeOption = target.closest('.theme-option');
+                if (themeOption) {
+                    document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
+                    themeOption.classList.add('active');
+                    const theme = themeOption.dataset.theme;
+                    if (theme) {
+                        this.selectTheme(theme);
+                    }
+                    return;
+                }
+                
+                return; // Не обрабатываем другие клики в настройках
+            }
+            
+            // Старые обработчики для других модалов
             if (target.textContent.includes('Изменить аватар') || target.classList.contains('btn-secondary')) {
                 const avatarInput = document.getElementById('avatar-input');
                 if (avatarInput) {
@@ -102,7 +151,6 @@ class MessengerApp {
                 return;
             }
             
-            // Кнопка сохранить настройки
             if (target.textContent.includes('Сохранить изменения') || (target.classList.contains('btn-primary') && modal.id === 'settings-modal')) {
                 this.saveSettings();
                 return;
@@ -120,18 +168,6 @@ class MessengerApp {
                 if (userId) {
                     this.startChat(userId);
                 }
-                return;
-            }
-            
-            if (target.classList.contains('settings-tab')) {
-                this.switchSettingsTab(target.dataset.tab);
-                return;
-            }
-            
-            if (target.classList.contains('theme-card') || target.closest('.theme-card')) {
-                const themeCard = target.closest('.theme-card') || target;
-                const theme = themeCard.dataset.theme;
-                this.selectTheme(theme);
                 return;
             }
             
@@ -888,38 +924,10 @@ class MessengerApp {
         if (modal) {
             modal.style.display = 'flex';
             this.loadUserSettings();
-            this.setupModernSettingsHandlers();
         }
     }
 
-    setupModernSettingsHandlers() {
-        // Обработчики для элементов настроек
-        document.querySelectorAll('.setting-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const setting = item.dataset.setting;
-                this.openSettingsSubscreen(setting);
-            });
-        });
 
-        // Обработчик для изменения аватара
-        document.querySelector('.avatar-edit-btn')?.addEventListener('click', () => {
-            document.getElementById('avatar-input').click();
-        });
-
-        document.querySelector('.large-avatar')?.addEventListener('click', () => {
-            document.getElementById('avatar-input').click();
-        });
-
-        // Обработчики тем
-        document.querySelectorAll('.theme-option').forEach(option => {
-            option.addEventListener('click', () => {
-                document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'));
-                option.classList.add('active');
-                const theme = option.dataset.theme;
-                this.selectTheme(theme);
-            });
-        });
-    }
 
     openSettingsSubscreen(setting) {
         if (setting === 'logout') {
@@ -990,15 +998,12 @@ class MessengerApp {
             // Создаем экран видеозвонка
             this.createVideoCallScreen(stream, includeVideo);
             
-            // Уведомляем собеседника о звонке через улучшенную систему
-            if (this.socket) {
+            // Простое уведомление о звонке без WebRTC
+            if (this.socket && this.currentChat) {
                 this.socket.emit('call-user', {
                     chatId: this.currentChat.id,
                     callType: includeVideo ? 'video' : 'audio'
                 });
-                
-                // Настраиваем обработчики WebRTC событий
-                this.setupWebRTCHandlers(stream);
             }
             
         } catch (error) {
@@ -1010,59 +1015,16 @@ class MessengerApp {
     setupWebRTCHandlers(localStream) {
         if (!this.socket) return;
         
-        // Handle incoming call
+        // Handle incoming call - простое уведомление
         this.socket.on('incoming-call', (data) => {
             const { callId, fromUserId, fromUsername, callType, chatId } = data;
             
             // Создаем красивое уведомление о звонке
             this.showCallNotification(fromUsername, callType, () => {
-                this.acceptCall(callId, fromUserId, callType);
+                this.showNotification(`Принят ${callType === 'video' ? 'видео' : 'аудио'}звонок от ${fromUsername}`, 'success');
             }, () => {
-                this.socket.emit('call-answer', {
-                    targetUserId: fromUserId,
-                    answer: 'rejected',
-                    callId
-                });
-            });
-        });
-        
-        // Handle call answer
-        this.socket.on('call-answer', (data) => {
-            const { fromUserId, answer, callId } = data;
-            
-            if (answer === 'accepted') {
-                this.startPeerConnection(fromUserId, localStream, true);
-            } else {
                 this.showNotification('Звонок отклонен', 'info');
-                this.endCall(localStream);
-            }
-        });
-        
-        // Handle WebRTC signaling
-        this.socket.on('webrtc-signal', async (data) => {
-            const { fromUserId, signal, callId } = data;
-            
-            if (this.peerConnection) {
-                try {
-                    if (signal.type === 'offer') {
-                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
-                        const answer = await this.peerConnection.createAnswer();
-                        await this.peerConnection.setLocalDescription(answer);
-                        
-                        this.socket.emit('webrtc-signal', {
-                            targetUserId: fromUserId,
-                            signal: answer,
-                            callId
-                        });
-                    } else if (signal.type === 'answer') {
-                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
-                    } else if (signal.candidate) {
-                        await this.peerConnection.addIceCandidate(new RTCIceCandidate(signal));
-                    }
-                } catch (error) {
-                    console.error('🔥 Ошибка WebRTC сигналинга:', error);
-                }
-            }
+            });
         });
     }
 
@@ -1106,79 +1068,7 @@ class MessengerApp {
         }, 30000);
     }
 
-    async acceptCall(callId, fromUserId, callType) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: callType === 'video',
-                audio: true
-            });
-            
-            this.createVideoCallScreen(stream, callType === 'video');
-            
-            this.socket.emit('call-answer', {
-                targetUserId: fromUserId,
-                answer: 'accepted',
-                callId
-            });
-            
-            this.startPeerConnection(fromUserId, stream, false);
-            
-        } catch (error) {
-            console.error('🔥 Ошибка принятия звонка:', error);
-            this.showNotification('Ошибка доступа к камере/микрофону', 'error');
-        }
-    }
 
-    async startPeerConnection(targetUserId, localStream, isInitiator) {
-        try {
-            this.peerConnection = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
-                ]
-            });
-            
-            // Add local stream
-            localStream.getTracks().forEach(track => {
-                this.peerConnection.addTrack(track, localStream);
-            });
-            
-            // Handle remote stream
-            this.peerConnection.ontrack = (event) => {
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo && event.streams[0]) {
-                    remoteVideo.srcObject = event.streams[0];
-                }
-            };
-            
-            // Handle ICE candidates
-            this.peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    this.socket.emit('webrtc-signal', {
-                        targetUserId: targetUserId,
-                        signal: event.candidate,
-                        callId: 'current-call'
-                    });
-                }
-            };
-            
-            // Create offer if initiator
-            if (isInitiator) {
-                const offer = await this.peerConnection.createOffer();
-                await this.peerConnection.setLocalDescription(offer);
-                
-                this.socket.emit('webrtc-signal', {
-                    targetUserId: targetUserId,
-                    signal: offer,
-                    callId: 'current-call'
-                });
-            }
-            
-        } catch (error) {
-            console.error('🔥 Ошибка создания peer connection:', error);
-            this.showNotification('Ошибка установки соединения', 'error');
-        }
-    }
 
     createVideoCallScreen(stream, includeVideo) {
         // Создаем экран видеозвонка
@@ -1292,14 +1182,8 @@ class MessengerApp {
             stream.getTracks().forEach(track => track.stop());
         }
         
-        // Закрываем peer connection
-        if (this.peerConnection) {
-            this.peerConnection.close();
-            this.peerConnection = null;
-        }
-        
         // Уведомляем о завершении звонка
-        if (this.socket) {
+        if (this.socket && this.currentChat) {
             this.socket.emit('end-call', {
                 chatId: this.currentChat.id
             });
@@ -1307,14 +1191,8 @@ class MessengerApp {
         
         // Удаляем экран звонка
         const callScreen = document.getElementById('video-call-screen');
-        if (callScreen) {
+        if (callScreen && document.body.contains(callScreen)) {
             document.body.removeChild(callScreen);
-        }
-        
-        // Останавливаем таймер
-        if (this.callTimer) {
-            clearInterval(this.callTimer);
-            this.callTimer = null;
         }
         
         this.showNotification('Звонок завершен', 'info');
@@ -2048,6 +1926,7 @@ class MessengerApp {
         try {
             console.log('🔥 Отправляем GIF:', gifUrl);
             
+            // Отправляем как обычное текстовое сообщение с URL
             const response = await fetch('/api/messages', {
                 method: 'POST',
                 headers: {
@@ -2056,7 +1935,7 @@ class MessengerApp {
                 },
                 body: JSON.stringify({
                     chatId: this.currentChat.id,
-                    text: gifUrl, // Просто отправляем URL как текст
+                    text: `🎬 GIF: ${gifUrl}`,
                     type: 'text'
                 })
             });

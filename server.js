@@ -920,8 +920,14 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             return res.status(400).json({ success: false, message: 'ID чата обязателен' });
         }
         
-        if (!text && !fileData && type !== 'game' && type !== 'gif') {
+        // Для игр и GIF разрешаем отправку без текста, но с fileData
+        if (!text && !fileData && type !== 'game' && type !== 'gif' && type !== 'sticker') {
             return res.status(400).json({ success: false, message: 'Текст сообщения или файл обязательны' });
+        }
+        
+        // Для игр fileData обязательно
+        if (type === 'game' && !fileData) {
+            return res.status(400).json({ success: false, message: 'Для игр необходимы данные игры' });
         }
         
         console.log('🔥 Создаем сообщение:', { chatId, text, type, hasFile: !!fileData });
