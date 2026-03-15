@@ -1615,22 +1615,23 @@ document.addEventListener('click', (e) => {
         }
     }
 });
-    // Дополнительные методы для новых функций
-    switchStickerTab(tab) {
-        document.querySelectorAll('.sticker-tab').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.stickers-grid, .gifs-grid').forEach(grid => grid.classList.remove('active'));
-        
-        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-        document.getElementById(`${tab}-grid`).classList.add('active');
-        
-        if (tab === 'stickers') {
-            this.loadStickers();
-        } else if (tab === 'gifs') {
-            this.loadGifs();
-        }
-    }
 
-    loadStickers() {
+// Дополнительные функции для новых возможностей
+function switchStickerTab(tab) {
+    document.querySelectorAll('.sticker-tab').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stickers-grid, .gifs-grid').forEach(grid => grid.classList.remove('active'));
+    
+    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+    document.getElementById(`${tab}-grid`).classList.add('active');
+    
+    if (tab === 'stickers') {
+        loadStickers();
+    } else if (tab === 'gifs') {
+        loadGifs();
+    }
+}
+
+function loadStickers() {
         const stickersGrid = document.getElementById('stickers-grid');
         if (!stickersGrid) return;
         
@@ -1653,13 +1654,13 @@ document.addEventListener('click', (e) => {
             stickerItem.className = 'sticker-item';
             stickerItem.textContent = sticker;
             stickerItem.addEventListener('click', () => {
-                this.sendStickerMessage(sticker);
+                sendStickerMessage(sticker);
             });
             stickersGrid.appendChild(stickerItem);
         });
     }
 
-    loadGifs() {
+function loadGifs() {
         const gifsContainer = document.querySelector('.gifs-container');
         if (!gifsContainer) return;
         
@@ -1672,7 +1673,7 @@ document.addEventListener('click', (e) => {
         `;
     }
 
-    async sendStickerMessage(sticker) {
+async function sendStickerMessage(sticker) {
         if (!this.currentChat) {
             this.showNotification('Выберите чат для отправки стикера', 'error');
             return;
