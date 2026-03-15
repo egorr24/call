@@ -3217,3 +3217,225 @@ body {
         justify-content: center;
     }
 }
+/* Стили для аудио сообщений */
+.message-audio {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 8px 0;
+    max-width: 300px;
+}
+
+.message-audio.voice-message {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.audio-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.audio-info i {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.message-audio audio {
+    width: 100%;
+    height: 32px;
+    border-radius: 16px;
+}
+
+/* Улучшенные стили для файлов */
+.message-document {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 8px 0;
+    max-width: 300px;
+}
+
+.message-document i {
+    font-size: 24px;
+    color: #667eea;
+}
+
+.document-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.document-name {
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.document-size {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.download-btn {
+    color: #667eea;
+    text-decoration: none;
+    padding: 8px;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.1);
+    transition: all 0.2s ease;
+}
+
+.download-btn:hover {
+    background: rgba(102, 126, 234, 0.2);
+    transform: scale(1.1);
+}
+
+/* Улучшенные стили для изображений */
+.message-image {
+    max-width: 300px;
+    max-height: 400px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.message-image:hover {
+    transform: scale(1.02);
+}
+
+/* Улучшенные стили для видео */
+.message-video {
+    max-width: 300px;
+    max-height: 400px;
+    border-radius: 12px;
+}
+
+/* Индикатор записи голосового сообщения */
+.voice-recording {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    margin: 8px 0;
+    color: white;
+}
+
+.voice-wave {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.wave-bar {
+    width: 3px;
+    height: 20px;
+    background: white;
+    border-radius: 2px;
+    animation: wave 1.5s ease-in-out infinite;
+}
+
+.wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.wave-bar:nth-child(3) { animation-delay: 0.2s; }
+.wave-bar:nth-child(4) { animation-delay: 0.3s; }
+.wave-bar:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes wave {
+    0%, 100% { height: 20px; }
+    50% { height: 8px; }
+}
+
+.voice-timer {
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.voice-cancel, .voice-send {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.voice-cancel:hover {
+    background: rgba(255, 0, 0, 0.3);
+}
+
+.voice-send:hover {
+    background: rgba(0, 255, 0, 0.3);
+}
+
+/* Анимация для кнопки записи */
+.icon-btn.recording {
+    background: #e74c3c !important;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+/* Улучшенные уведомления */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    transform: translateX(400px);
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    max-width: 350px;
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.success {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+}
+
+.notification.error {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+}
+
+.notification.info {
+    background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.notification-content i {
+    font-size: 18px;
+    opacity: 0.9;
+}
+
+.notification-content span {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.4;
+}

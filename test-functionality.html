@@ -3,45 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест функциональности мессенджера</title>
+    <title>Полный тест функциональности мессенджера</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        .success { color: green; }
-        .error { color: red; }
-        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
-        input { padding: 8px; margin: 5px; width: 200px; }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .success { color: #4CAF50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .info { color: #2196F3; font-weight: bold; }
+        button { 
+            padding: 12px 20px; 
+            margin: 8px; 
+            cursor: pointer; 
+            border: none;
+            border-radius: 6px;
+            background: #667eea;
+            color: white;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        button:hover { background: #5a67d8; transform: translateY(-1px); }
+        input { 
+            padding: 12px; 
+            margin: 8px; 
+            width: 250px; 
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .result { 
+            margin-top: 15px; 
+            padding: 12px; 
+            border-radius: 6px; 
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+        }
+        h1 { color: #333; text-align: center; }
+        h3 { color: #667eea; margin-bottom: 15px; }
+        .status { font-size: 18px; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <h1>Тест функциональности Flux Messenger</h1>
+    <h1>🔥 Полный тест Flux Messenger</h1>
     
     <div class="test-section">
-        <h3>1. Тест регистрации</h3>
-        <input type="text" id="reg-username" placeholder="Имя пользователя">
-        <input type="email" id="reg-email" placeholder="Email">
-        <input type="password" id="reg-password" placeholder="Пароль">
+        <h3>📊 Статус подключения</h3>
+        <div id="connection-status" class="status">Проверяем подключение...</div>
+        <button onclick="testConnection()">Проверить подключение</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>1️⃣ Тест регистрации</h3>
+        <input type="text" id="reg-username" placeholder="Имя пользователя" value="testuser">
+        <input type="email" id="reg-email" placeholder="Email" value="test@example.com">
+        <input type="password" id="reg-password" placeholder="Пароль" value="123456">
         <button onclick="testRegister()">Зарегистрироваться</button>
-        <div id="reg-result"></div>
+        <div id="reg-result" class="result"></div>
     </div>
     
     <div class="test-section">
-        <h3>2. Тест входа</h3>
-        <input type="email" id="login-email" placeholder="Email">
-        <input type="password" id="login-password" placeholder="Пароль">
+        <h3>2️⃣ Тест входа</h3>
+        <input type="email" id="login-email" placeholder="Email" value="test@example.com">
+        <input type="password" id="login-password" placeholder="Пароль" value="123456">
         <button onclick="testLogin()">Войти</button>
-        <div id="login-result"></div>
+        <div id="login-result" class="result"></div>
     </div>
     
     <div class="test-section">
-        <h3>3. Тест API endpoints</h3>
+        <h3>3️⃣ Тест API endpoints</h3>
         <button onclick="testUsers()">Получить пользователей</button>
         <button onclick="testChats()">Получить чаты</button>
-        <div id="api-result"></div>
+        <button onclick="testMe()">Проверить профиль</button>
+        <div id="api-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>4️⃣ Тест загрузки файлов</h3>
+        <input type="file" id="test-file" accept="image/*">
+        <button onclick="testFileUpload()">Загрузить файл</button>
+        <div id="file-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>5️⃣ Тест создания чата</h3>
+        <input type="text" id="chat-user-id" placeholder="ID пользователя для чата">
+        <button onclick="testCreateChat()">Создать чат</button>
+        <div id="chat-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>6️⃣ Тест отправки сообщения</h3>
+        <input type="text" id="message-text" placeholder="Текст сообщения" value="Тестовое сообщение">
+        <input type="text" id="message-chat-id" placeholder="ID чата">
+        <button onclick="testSendMessage()">Отправить сообщение</button>
+        <div id="message-result" class="result"></div>
     </div>
 
     <script>
         let token = localStorage.getItem('token');
+        let currentUserId = null;
+        
+        async function testConnection() {
+            const status = document.getElementById('connection-status');
+            try {
+                const response = await fetch('/api/users');
+                if (response.status === 401) {
+                    status.innerHTML = '<span class="info">✅ Сервер работает (требуется авторизация)</span>';
+                } else {
+                    status.innerHTML = '<span class="success">✅ Сервер работает и доступен</span>';
+                }
+            } catch (error) {
+                status.innerHTML = '<span class="error">❌ Сервер недоступен: ' + error.message + '</span>';
+            }
+        }
         
         async function testRegister() {
             const username = document.getElementById('reg-username').value;
@@ -59,12 +138,12 @@
                 const result = document.getElementById('reg-result');
                 
                 if (data.success) {
-                    result.innerHTML = '<span class="success">✅ Регистрация успешна!</span>';
+                    result.innerHTML = '<span class="success">✅ Регистрация успешна!</span><br>Токен: ' + data.token.substring(0, 20) + '...';
                 } else {
-                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.error || data.message}</span>`;
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + (data.error || data.message) + '</span>';
                 }
             } catch (error) {
-                document.getElementById('reg-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+                document.getElementById('reg-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
             }
         }
         
@@ -84,13 +163,38 @@
                 
                 if (data.success) {
                     token = data.token;
+                    currentUserId = data.user.id;
                     localStorage.setItem('token', token);
-                    result.innerHTML = '<span class="success">✅ Вход успешен!</span>';
+                    result.innerHTML = '<span class="success">✅ Вход успешен!</span><br>Пользователь: ' + data.user.username + '<br>ID: ' + data.user.id;
                 } else {
-                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.error || data.message}</span>`;
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + (data.error || data.message) + '</span>';
                 }
             } catch (error) {
-                document.getElementById('login-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+                document.getElementById('login-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
+            }
+        }
+        
+        async function testMe() {
+            if (!token) {
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                const data = await response.json();
+                const result = document.getElementById('api-result');
+                
+                if (data.success) {
+                    result.innerHTML = '<span class="success">✅ Профиль загружен:</span><br>' + JSON.stringify(data.user, null, 2);
+                } else {
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.message + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
             }
         }
         
@@ -102,19 +206,20 @@
             
             try {
                 const response = await fetch('/api/users', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
                 const data = await response.json();
                 const result = document.getElementById('api-result');
                 
                 if (data.success) {
-                    result.innerHTML = `<span class="success">✅ Пользователи загружены: ${data.users.length}</span>`;
+                    result.innerHTML = '<span class="success">✅ Пользователи загружены: ' + data.users.length + '</span><br>' + 
+                        data.users.map(u => u.username + ' (ID: ' + u.id + ')').join('<br>');
                 } else {
-                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.message}</span>`;
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.message + '</span>';
                 }
             } catch (error) {
-                document.getElementById('api-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
             }
         }
         
@@ -126,21 +231,138 @@
             
             try {
                 const response = await fetch('/api/chats', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
                 const data = await response.json();
                 const result = document.getElementById('api-result');
                 
                 if (data.success) {
-                    result.innerHTML = `<span class="success">✅ Чаты загружены: ${data.chats.length}</span>`;
+                    result.innerHTML = '<span class="success">✅ Чаты загружены: ' + data.chats.length + '</span><br>' +
+                        data.chats.map(c => c.name + ' (ID: ' + c.id + ')').join('<br>');
                 } else {
-                    result.innerHTML = `<span class="error">❌ Ошибка: ${data.message}</span>`;
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.message + '</span>';
                 }
             } catch (error) {
-                document.getElementById('api-result').innerHTML = `<span class="error">❌ Ошибка: ${error.message}</span>`;
+                document.getElementById('api-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
             }
         }
+
+        async function testFileUpload() {
+            if (!token) {
+                document.getElementById('file-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+
+            const fileInput = document.getElementById('test-file');
+            if (!fileInput.files.length) {
+                document.getElementById('file-result').innerHTML = '<span class="error">❌ Выберите файл</span>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                });
+
+                const data = await response.json();
+                const result = document.getElementById('file-result');
+
+                if (data.success) {
+                    result.innerHTML = '<span class="success">✅ Файл загружен!</span><br>URL: ' + data.file.url + '<br>Размер: ' + data.file.size + ' байт';
+                } else {
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.error + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('file-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
+            }
+        }
+
+        async function testCreateChat() {
+            if (!token) {
+                document.getElementById('chat-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+
+            const userId = document.getElementById('chat-user-id').value;
+            if (!userId) {
+                document.getElementById('chat-result').innerHTML = '<span class="error">❌ Введите ID пользователя</span>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/chats/create', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token 
+                    },
+                    body: JSON.stringify({ userId })
+                });
+
+                const data = await response.json();
+                const result = document.getElementById('chat-result');
+
+                if (data.success) {
+                    result.innerHTML = '<span class="success">✅ Чат создан!</span><br>ID чата: ' + data.chat.id + '<br>Имя: ' + data.chat.name;
+                    document.getElementById('message-chat-id').value = data.chat.id;
+                } else {
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.message + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('chat-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
+            }
+        }
+
+        async function testSendMessage() {
+            if (!token) {
+                document.getElementById('message-result').innerHTML = '<span class="error">❌ Сначала войдите в систему</span>';
+                return;
+            }
+
+            const text = document.getElementById('message-text').value;
+            const chatId = document.getElementById('message-chat-id').value;
+
+            if (!text || !chatId) {
+                document.getElementById('message-result').innerHTML = '<span class="error">❌ Введите текст и ID чата</span>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token 
+                    },
+                    body: JSON.stringify({ chatId, text })
+                });
+
+                const data = await response.json();
+                const result = document.getElementById('message-result');
+
+                if (data.success) {
+                    result.innerHTML = '<span class="success">✅ Сообщение отправлено!</span><br>ID: ' + data.message.id + '<br>Время: ' + new Date(data.message.timestamp).toLocaleString();
+                } else {
+                    result.innerHTML = '<span class="error">❌ Ошибка: ' + data.message + '</span>';
+                }
+            } catch (error) {
+                document.getElementById('message-result').innerHTML = '<span class="error">❌ Ошибка: ' + error.message + '</span>';
+            }
+        }
+
+        // Автоматическая проверка подключения при загрузке
+        window.onload = function() {
+            testConnection();
+            if (token) {
+                document.getElementById('connection-status').innerHTML += '<br><span class="info">Найден сохраненный токен</span>';
+            }
+        };
     </script>
 </body>
 </html>

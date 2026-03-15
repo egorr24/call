@@ -903,11 +903,17 @@ app.post('/api/groups', authenticateToken, async (req, res) => {
 // Отправить сообщение
 app.post('/api/messages', authenticateToken, async (req, res) => {
     try {
-        const { chatId, text } = req.body;
+        const { chatId, text, type = 'text', fileData } = req.body;
         
-        if (!chatId || !text) {
-            return res.status(400).json({ success: false, message: 'ID чата и текст сообщения обязательны' });
+        if (!chatId) {
+            return res.status(400).json({ success: false, message: 'ID чата обязателен' });
         }
+        
+        if (!text && !fileData) {
+            return res.status(400).json({ success: false, message: 'Текст сообщения или файл обязательны' });
+        }
+        
+        console.log('🔥 Создаем сообщение:', { chatId, text, type, hasFile: !!fileData });
         
         if (useDatabase) {
             // Проверяем, что пользователь участник чата
@@ -923,8 +929,9 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             const message = await Message.create({
                 chatId,
                 senderId: req.userId,
-                text,
-                type: 'text'
+                text: text || '',
+                type: type,
+                fileData: fileData || null
             });
             
             // Получаем данные отправителя
@@ -938,6 +945,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
                 senderId: message.senderId,
                 text: message.text,
                 type: message.type,
+                fileData: message.fileData,
                 timestamp: message.createdAt,
                 sender: {
                     id: sender.id,
@@ -945,6 +953,8 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
                     avatar: sender.avatar
                 }
             };
+            
+            console.log('🔥 Сообщение создано:', messageData);
             
             // Отправляем через Socket.IO всем участникам чата
             const participants = await ChatParticipant.findAll({
@@ -978,8 +988,9 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
                 id: messageId,
                 chatId,
                 senderId: req.userId,
-                text,
-                type: 'text',
+                text: text || '',
+                type: type,
+                fileData: fileData || null,
                 timestamp: new Date(),
                 sender: {
                     id: sender.id,
@@ -992,6 +1003,8 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             const chatMessages = messages.get(chatId) || [];
             chatMessages.push(messageData);
             messages.set(chatId, chatMessages);
+            
+            console.log('🔥 Сообщение добавлено в Map:', messageData);
             
             // Отправляем через Socket.IO всем участникам чата
             chat.participants.forEach(userId => {
@@ -1006,7 +1019,7 @@ app.post('/api/messages', authenticateToken, async (req, res) => {
             res.json({ success: true, message: messageData });
         }
     } catch (error) {
-        console.error('Ошибка отправки сообщения:', error);
+        console.error('🔥 Ошибка отправки сообщения:', error);
         res.status(500).json({ success: false, message: 'Ошибка сервера' });
     }
 });

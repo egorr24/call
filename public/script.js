@@ -212,7 +212,13 @@ class MessengerApp {
         // File attachment
         else if (target.title === 'Прикрепить файл' || (button && button.title === 'Прикрепить файл')) {
             console.log('🔥 Прикрепляем файл');
-            document.getElementById('file-input').click();
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                console.error('🔥 Элемент file-input не найден');
+                this.showNotification('Ошибка: элемент загрузки файлов не найден', 'error');
+            }
         }
         // Photo attachment
         else if (target.title === 'Отправить фото' || (button && button.title === 'Отправить фото')) {
@@ -220,7 +226,11 @@ class MessengerApp {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = (e) => this.handleFileSelect(e);
+            input.multiple = true;
+            input.onchange = (e) => {
+                console.log('🔥 Выбраны фото:', e.target.files.length);
+                this.handleFileSelect(e);
+            };
             input.click();
         }
         // Settings tabs
@@ -486,9 +496,16 @@ class MessengerApp {
     }
 
     showNotification(message, type = 'info') {
+        console.log(`🔥 Уведомление [${type}]:`, message);
+        
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
-        notification.textContent = message;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            </div>
+        `;
         
         document.body.appendChild(notification);
         
@@ -499,7 +516,9 @@ class MessengerApp {
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
         }, 3000);
     }
@@ -692,32 +711,63 @@ class MessengerApp {
         messageDiv.dataset.messageId = message.id;
         
         let fileContent = '';
-        if (message.file) {
-            const fileUrl = `/uploads/${message.file.filename}`;
+        
+        // Обработка файлов - исправленная версия
+        if (message.fileData || message.file) {
+            const fileInfo = message.fileData || message.file;
+            console.log('🔥 Отображаем файл в сообщении:', fileInfo);
             
-            if (message.file.mimetype.startsWith('image/')) {
+            const fileUrl = fileInfo.url || `/uploads/${fileInfo.filename}`;
+            
+            if (fileInfo.mimetype && fileInfo.mimetype.startsWith('image/')) {
                 fileContent = `
                     <div class="message-file">
-                        <img src="${fileUrl}" alt="Image" class="message-image" loading="lazy">
+                        <img src="${fileUrl}" alt="Image" class="message-image" loading="lazy" 
+                             onerror="console.error('🔥 Ошибка загрузки изображения:', this.src); this.style.display='none';">
                     </div>
                 `;
-            } else if (message.file.mimetype.startsWith('video/')) {
+            } else if (fileInfo.mimetype && fileInfo.mimetype.startsWith('video/')) {
                 fileContent = `
                     <div class="message-file">
                         <video controls class="message-video" preload="metadata">
-                            <source src="${fileUrl}" type="${message.file.mimetype}">
+                            <source src="${fileUrl}" type="${fileInfo.mimetype}">
+                            Ваш браузер не поддерживает видео.
                         </video>
                     </div>
                 `;
+            } else if (fileInfo.mimetype && fileInfo.mimetype.startsWith('audio/')) {
+                // Голосовые сообщения и аудио файлы
+                const isVoiceMessage = fileInfo.originalName === 'Голосовое сообщение' || fileInfo.filename.includes('voice');
+                fileContent = `
+                    <div class="message-file">
+                        <div class="message-audio ${isVoiceMessage ? 'voice-message' : ''}">
+                            <div class="audio-info">
+                                <i class="fas fa-${isVoiceMessage ? 'microphone' : 'music'}"></i>
+                                <span>${isVoiceMessage ? 'Голосовое сообщение' : (fileInfo.originalName || 'Аудио файл')}</span>
+                            </div>
+                            <audio controls preload="metadata">
+                                <source src="${fileUrl}" type="${fileInfo.mimetype}">
+                                Ваш браузер не поддерживает аудио.
+                            </audio>
+                        </div>
+                    </div>
+                `;
             } else {
+                // Документы и другие файлы
+                const fileName = fileInfo.originalName || fileInfo.filename || 'Файл';
+                const fileSize = fileInfo.size ? this.formatFileSize(fileInfo.size) : '';
+                
                 fileContent = `
                     <div class="message-file">
                         <div class="message-document">
                             <i class="fas fa-file"></i>
                             <div class="document-info">
-                                <div class="document-name">${this.escapeHtml(message.file.originalName)}</div>
-                                <div class="document-size">${this.formatFileSize(message.file.size)}</div>
+                                <div class="document-name">${this.escapeHtml(fileName)}</div>
+                                ${fileSize ? `<div class="document-size">${fileSize}</div>` : ''}
                             </div>
+                            <a href="${fileUrl}" download="${fileName}" class="download-btn">
+                                <i class="fas fa-download"></i>
+                            </a>
                         </div>
                     </div>
                 `;
@@ -797,13 +847,20 @@ class MessengerApp {
         }
     }
     handleNewMessage(message) {
+        console.log('🔥 Получено новое сообщение:', message);
+        
         if (this.currentChat && message.chatId === this.currentChat.id) {
             const messageElement = this.createMessageElement(message);
             const messagesContainer = document.getElementById('messages-container');
             if (messagesContainer) {
                 messagesContainer.appendChild(messageElement);
                 this.scrollToBottom();
+                console.log('🔥 Сообщение добавлено в текущий чат');
+            } else {
+                console.warn('🔥 Контейнер сообщений не найден');
             }
+        } else {
+            console.log('🔥 Сообщение для другого чата или нет активного чата');
         }
         
         // Update chat list
@@ -1043,21 +1100,42 @@ class MessengerApp {
 
     // File handling
     handleFileSelect(e) {
+        console.log('🔥 Выбраны файлы:', e.target.files.length);
         const files = Array.from(e.target.files);
-        files.forEach(file => {
+        
+        if (files.length === 0) {
+            console.warn('🔥 Файлы не выбраны');
+            return;
+        }
+        
+        files.forEach((file, index) => {
+            console.log(`🔥 Обрабатываем файл ${index + 1}:`, file.name, file.type, file.size);
             this.sendFileMessage(file);
         });
     }
 
     async sendFileMessage(file) {
-        if (!this.currentChat) return;
+        if (!this.currentChat) {
+            console.error('🔥 Нет активного чата для отправки файла');
+            this.showNotification('Выберите чат для отправки файла', 'error');
+            return;
+        }
+        
+        console.log('🔥 Отправляем файл:', file.name, 'размер:', file.size, 'тип:', file.type);
+        
+        // Проверяем размер файла (50MB лимит)
+        if (file.size > 50 * 1024 * 1024) {
+            this.showNotification('Файл слишком большой (максимум 50MB)', 'error');
+            return;
+        }
         
         const formData = new FormData();
         formData.append('file', file);
         formData.append('chatId', this.currentChat.id);
         
         try {
-            const response = await fetch('/api/messages/file', {
+            console.log('🔥 Отправляем запрос на загрузку файла...');
+            const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1065,12 +1143,56 @@ class MessengerApp {
                 body: formData
             });
             
+            console.log('🔥 Ответ сервера загрузки файла:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные ответа загрузки:', data);
             
-            if (!data.success) {
-                this.showNotification('Ошибка отправки файла', 'error');
+            if (data.success) {
+                console.log('🔥 Файл загружен успешно, отправляем сообщение с файлом');
+                // Отправляем сообщение с информацией о файле
+                await this.sendMessageWithFile(data.file);
+            } else {
+                console.error('🔥 Ошибка загрузки файла:', data.error);
+                this.showNotification('Ошибка загрузки файла: ' + (data.error || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при загрузке файла:', error);
+            this.showNotification('Ошибка загрузки файла', 'error');
+        }
+    }
+
+    async sendMessageWithFile(fileInfo) {
+        if (!this.currentChat) return;
+        
+        console.log('🔥 Отправляем сообщение с файлом:', fileInfo);
+        
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: fileInfo.mimetype.startsWith('image/') ? '' : fileInfo.originalName,
+                    type: 'file',
+                    fileData: fileInfo
+                })
+            });
+            
+            console.log('🔥 Ответ отправки сообщения с файлом:', response.status);
+            const data = await response.json();
+            console.log('🔥 Данные ответа сообщения с файлом:', data);
+            
+            if (data.success) {
+                console.log('🔥 Сообщение с файлом отправлено успешно');
+            } else {
+                console.error('🔥 Ошибка отправки сообщения с файлом:', data.message);
+                this.showNotification('Ошибка отправки файла: ' + (data.message || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка при отправке сообщения с файлом:', error);
             this.showNotification('Ошибка отправки файла', 'error');
         }
     }
@@ -1078,6 +1200,7 @@ class MessengerApp {
     // Voice recording
     async startVoiceRecording() {
         try {
+            console.log('🔥 Начинаем запись голосового сообщения');
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.mediaRecorder = new MediaRecorder(stream);
             this.recordedChunks = [];
@@ -1089,6 +1212,7 @@ class MessengerApp {
             };
             
             this.mediaRecorder.onstop = () => {
+                console.log('🔥 Запись голосового сообщения завершена');
                 const blob = new Blob(this.recordedChunks, { type: 'audio/webm' });
                 this.sendVoiceMessage(blob);
                 stream.getTracks().forEach(track => track.stop());
@@ -1099,35 +1223,62 @@ class MessengerApp {
             
             // Update UI
             const voiceBtn = document.getElementById('voice-btn');
-            voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
-            voiceBtn.classList.add('recording');
+            if (voiceBtn) {
+                voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                voiceBtn.classList.add('recording');
+            }
+            
+            // Show recording indicator
+            const recordingIndicator = document.getElementById('voice-recording');
+            if (recordingIndicator) {
+                recordingIndicator.style.display = 'flex';
+            }
+            
+            this.showNotification('Запись голосового сообщения...', 'info');
             
         } catch (error) {
+            console.error('🔥 Ошибка доступа к микрофону:', error);
             this.showNotification('Ошибка доступа к микрофону', 'error');
         }
     }
 
     stopVoiceRecording() {
         if (this.mediaRecorder && this.isRecording) {
+            console.log('🔥 Останавливаем запись голосового сообщения');
             this.mediaRecorder.stop();
             this.isRecording = false;
             
             // Update UI
             const voiceBtn = document.getElementById('voice-btn');
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            voiceBtn.classList.remove('recording');
+            if (voiceBtn) {
+                voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                voiceBtn.classList.remove('recording');
+            }
+            
+            // Hide recording indicator
+            const recordingIndicator = document.getElementById('voice-recording');
+            if (recordingIndicator) {
+                recordingIndicator.style.display = 'none';
+            }
         }
     }
 
     async sendVoiceMessage(audioBlob) {
-        if (!this.currentChat) return;
+        if (!this.currentChat) {
+            console.error('🔥 Нет активного чата для отправки голосового сообщения');
+            this.showNotification('Выберите чат для отправки голосового сообщения', 'error');
+            return;
+        }
+        
+        console.log('🔥 Отправляем голосовое сообщение, размер:', audioBlob.size);
         
         const formData = new FormData();
-        formData.append('voice', audioBlob, 'voice.webm');
+        formData.append('file', audioBlob, 'voice-message.webm');
         formData.append('chatId', this.currentChat.id);
         
         try {
-            const response = await fetch('/api/messages/voice', {
+            console.log('🔥 Загружаем голосовое сообщение на сервер...');
+            const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1135,12 +1286,25 @@ class MessengerApp {
                 body: formData
             });
             
+            console.log('🔥 Ответ сервера загрузки голосового сообщения:', response.status);
             const data = await response.json();
+            console.log('🔥 Данные ответа загрузки голосового сообщения:', data);
             
-            if (!data.success) {
-                this.showNotification('Ошибка отправки голосового сообщения', 'error');
+            if (data.success) {
+                console.log('🔥 Голосовое сообщение загружено, отправляем сообщение');
+                // Отправляем сообщение с голосовым файлом
+                await this.sendMessageWithFile({
+                    ...data.file,
+                    mimetype: 'audio/webm',
+                    originalName: 'Голосовое сообщение'
+                });
+                this.showNotification('Голосовое сообщение отправлено', 'success');
+            } else {
+                console.error('🔥 Ошибка загрузки голосового сообщения:', data.error);
+                this.showNotification('Ошибка отправки голосового сообщения: ' + (data.error || 'Неизвестная ошибка'), 'error');
             }
         } catch (error) {
+            console.error('🔥 Ошибка при отправке голосового сообщения:', error);
             this.showNotification('Ошибка отправки голосового сообщения', 'error');
         }
     }
@@ -1379,45 +1543,75 @@ document.addEventListener('click', (e) => {
     
     // Handle send button
     if (e.target.classList.contains('send-btn') || e.target.closest('.send-btn')) {
-        app.sendMessage();
+        console.log('🔥 Глобальный обработчик: отправка сообщения');
+        if (app && app.sendMessage) {
+            app.sendMessage();
+        }
     }
     
     // Handle file attachment
-    if (e.target.title === 'Прикрепить файл') {
-        document.getElementById('file-input').click();
+    if (e.target.title === 'Прикрепить файл' || e.target.closest('[title="Прикрепить файл"]')) {
+        console.log('🔥 Глобальный обработчик: прикрепить файл');
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            console.error('🔥 Элемент file-input не найден');
+        }
     }
     
     // Handle photo attachment
-    if (e.target.title === 'Отправить фото') {
+    if (e.target.title === 'Отправить фото' || e.target.closest('[title="Отправить фото"]')) {
+        console.log('🔥 Глобальный обработчик: отправить фото');
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.onchange = (e) => app.handleFileSelect(e);
+        input.multiple = true;
+        input.onchange = (e) => {
+            console.log('🔥 Выбраны фото через глобальный обработчик:', e.target.files.length);
+            if (app && app.handleFileSelect) {
+                app.handleFileSelect(e);
+            }
+        };
         input.click();
     }
     
     // Handle voice recording
     if (e.target.title === 'Голосовое сообщение' || e.target.closest('#voice-btn')) {
-        if (app.isRecording) {
-            app.stopVoiceRecording();
-        } else {
-            app.startVoiceRecording();
+        console.log('🔥 Глобальный обработчик: голосовое сообщение');
+        if (app) {
+            if (app.isRecording) {
+                app.stopVoiceRecording();
+            } else {
+                app.startVoiceRecording();
+            }
         }
     }
     
     // Handle stickers panel
     if (e.target.title === 'Стикеры и GIF' || e.target.closest('#sticker-btn')) {
+        console.log('🔥 Глобальный обработчик: стикеры');
         const panel = document.getElementById('sticker-panel');
-        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        if (panel) {
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
     }
     
     // Handle poll creation
     if (e.target.title === 'Создать опрос' || e.target.closest('#poll-btn')) {
-        document.getElementById('poll-panel').style.display = 'block';
+        console.log('🔥 Глобальный обработчик: создать опрос');
+        const panel = document.getElementById('poll-panel');
+        if (panel) {
+            panel.style.display = 'block';
+        }
     }
     
     // Handle drawing
     if (e.target.title === 'Совместное рисование' || e.target.closest('#draw-btn')) {
-        document.getElementById('draw-panel').style.display = 'block';
+        console.log('🔥 Глобальный обработчик: рисование');
+        const panel = document.getElementById('draw-panel');
+        if (panel) {
+            panel.style.display = 'block';
+        }
     }
 });
