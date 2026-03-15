@@ -36,7 +36,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'flux-secret-key-change-in-producti
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Настройка MIME типов для статических файлов
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+        if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+    }
+}));
 
 // Создаем папку для загрузок
 const uploadsDir = path.join(__dirname, 'uploads');

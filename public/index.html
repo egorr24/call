@@ -7,6 +7,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0f0f23">
     <meta name="apple-mobile-web-app-title" content="Flux Messenger">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     
     <!-- Оптимизация для производительности -->
     <meta name="format-detection" content="telephone=no">
@@ -15,11 +18,11 @@
     <!-- Предзагрузка критических ресурсов -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <title>🔥 Flux Messenger</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="new-features.css">
+    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="new-features.css?v=2.0">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -601,6 +604,40 @@
         </div>
     </div>
 
+    <script>
+        // Проверка загрузки CSS
+        window.addEventListener('load', function() {
+            const body = document.body;
+            const computedStyle = window.getComputedStyle(body);
+            const bgColor = computedStyle.backgroundColor;
+            
+            console.log('🔥 Background color:', bgColor);
+            
+            if (bgColor === 'rgba(0, 0, 0, 0)' || bgColor === 'rgb(255, 255, 255)') {
+                console.error('🔥 CSS НЕ ЗАГРУЗИЛСЯ! Применяем стили принудительно...');
+                
+                // Принудительно применяем базовые стили
+                body.style.cssText = `
+                    background: #0a0a0f !important;
+                    color: #ffffff !important;
+                    font-family: 'Inter', sans-serif !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                `;
+                
+                // Перезагружаем CSS
+                const links = document.querySelectorAll('link[rel="stylesheet"]');
+                links.forEach(link => {
+                    const newLink = link.cloneNode();
+                    newLink.href = link.href + '&reload=' + Date.now();
+                    link.parentNode.insertBefore(newLink, link.nextSibling);
+                    link.remove();
+                });
+            } else {
+                console.log('🔥 CSS загружен успешно!');
+            }
+        });
+    </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
