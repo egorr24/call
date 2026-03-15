@@ -12,7 +12,53 @@ class MessengerApp {
 
     init() {
         this.setupEventListeners();
+        this.setupSearchListeners();
         this.checkAuthStatus();
+        
+        // Initialize drawing canvas when draw panel is opened
+        document.addEventListener('click', (e) => {
+            if (e.target.title === 'Совместное рисование' || e.target.id === 'draw-btn') {
+                setTimeout(() => {
+                    this.initializeDrawingCanvas();
+                }, 100);
+            }
+        });
+        
+        // Initialize GIF search
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'gif-search') {
+                this.loadGifs(e.target.value);
+            }
+        });
+        
+        // Initialize sticker tab switching
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('sticker-tab')) {
+                document.querySelectorAll('.sticker-tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.stickers-grid, .gifs-grid').forEach(grid => grid.classList.remove('active'));
+                
+                e.target.classList.add('active');
+                const tabType = e.target.dataset.tab;
+                
+                if (tabType === 'gifs') {
+                    document.getElementById('gifs-grid').classList.add('active');
+                    this.loadGifs();
+                } else {
+                    document.getElementById('stickers-grid').classList.add('active');
+                }
+            }
+        });
+        
+        // Initialize game clicks
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.game-card')) {
+                const gameCard = e.target.closest('.game-card');
+                const gameType = gameCard.dataset.game;
+                if (gameType) {
+                    this.startGame(gameType);
+                }
+            }
+        });
     }
 
     setupEventListeners() {
@@ -29,6 +75,10 @@ class MessengerApp {
         document.getElementById('file-input')?.addEventListener('change', (e) => {
             this.handleFileSelect(e);
         });
+
+        document.getElementById('avatar-input')?.addEventListener('change', (e) => {
+            this.handleAvatarSelect(e);
+        });
     }
 
     handleGlobalClick(e) {
@@ -40,6 +90,21 @@ class MessengerApp {
         if (modal && modal.style.display === 'flex') {
             if (target.classList.contains('close-btn') || target.closest('.close-btn')) {
                 modal.style.display = 'none';
+                return;
+            }
+            
+            // Кнопка изменить аватар
+            if (target.textContent.includes('Изменить аватар') || target.classList.contains('btn-secondary')) {
+                const avatarInput = document.getElementById('avatar-input');
+                if (avatarInput) {
+                    avatarInput.click();
+                }
+                return;
+            }
+            
+            // Кнопка сохранить настройки
+            if (target.textContent.includes('Сохранить изменения') || (target.classList.contains('btn-primary') && modal.id === 'settings-modal')) {
+                this.saveSettings();
                 return;
             }
             
@@ -500,13 +565,28 @@ class MessengerApp {
 
     createMessageElement(message) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.senderId === this.currentUser.id ? 'own' : ''}`;
+        // Fix sender identification - use senderId instead of sender
+        const isOwnMessage = message.senderId === this.currentUser.id || message.sender === this.currentUser.id;
+        messageDiv.className = `message ${isOwnMessage ? 'own' : ''}`;
         messageDiv.dataset.messageId = message.id;
         
         let fileContent = '';
         
+        // Handle GIF messages
+        if (message.type === 'gif' && message.fileData?.url) {
+            fileContent = `
+                <div class="message-file">
+                    <img src="${message.fileData.url}" alt="GIF" class="message-gif" loading="lazy" 
+                         style="max-width: 300px; max-height: 300px; border-radius: 12px; cursor: pointer;">
+                </div>
+            `;
+        }
+        // Handle game messages
+        else if (message.type === 'game' && message.fileData) {
+            fileContent = this.createGameElement(message.fileData, message.id);
+        }
         // Обработка файлов
-        if (message.fileData || message.file) {
+        else if (message.fileData || message.file) {
             const fileInfo = message.fileData || message.file;
             const fileUrl = fileInfo.url || `/uploads/${fileInfo.filename}`;
             
@@ -572,6 +652,139 @@ class MessengerApp {
         `;
         
         return messageDiv;
+    }
+
+    createGameElement(gameData, messageId) {
+        switch (gameData.type) {
+            case 'tic-tac-toe':
+                return this.createTicTacToeElement(gameData, messageId);
+            case 'word-game':
+                return this.createWordGameElement(gameData, messageId);
+            case 'quiz':
+                return this.createQuizElement(gameData, messageId);
+            default:
+                return '<div class="game-element">Неизвестная игра</div>';
+        }
+    }
+
+    createTicTacToeElement(gameData, messageId) {
+        const board = gameData.board || Array(9).fill('');
+        const isActive = gameData.status === 'active' || gameData.status === 'waiting';
+        
+        let boardHtml = '<div class="tic-tac-toe-board" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; width: 200px; height: 200px; background: var(--bg-tertiary); border-radius: 8px; padding: 4px;">';
+        
+        for (let i = 0; i < 9; i++) {
+            const cellValue = board[i] || '';
+            const clickable = isActive && !cellValue;
+            boardHtml += `
+                <div class="tic-tac-toe-cell" 
+                     data-position="${i}" 
+                     data-message-id="${messageId}"
+                     style="background: var(--bg-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: var(--neon-green); cursor: ${clickable ? 'pointer' : 'default'}; transition: var(--transition-smooth);"
+                     ${clickable ? 'onclick="app.makeGameMove(\'' + messageId + '\', \'tic-tac-toe\', {position: ' + i + '})"' : ''}>
+                    ${cellValue}
+                </div>
+            `;
+        }
+        
+        boardHtml += '</div>';
+        
+        const statusText = gameData.status === 'waiting' ? 'Ожидание игрока' : 
+                          gameData.status === 'active' ? `Ход: ${gameData.currentPlayer}` :
+                          gameData.status === 'finished' ? `Победил: ${gameData.winner}` : 'Ничья';
+        
+        return `
+            <div class="game-element tic-tac-toe-game" style="padding: 15px; background: var(--bg-tertiary); border-radius: 12px; margin: 5px 0;">
+                <div class="game-header" style="text-align: center; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">
+                    🎮 Крестики-нолики
+                </div>
+                ${boardHtml}
+                <div class="game-status" style="text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;">
+                    ${statusText}
+                </div>
+            </div>
+        `;
+    }
+
+    createWordGameElement(gameData, messageId) {
+        const word = gameData.guessed ? gameData.guessed.join(' ') : '';
+        const attempts = gameData.attempts || 0;
+        const guessedLetters = gameData.guessedLetters || [];
+        
+        return `
+            <div class="game-element word-game" style="padding: 15px; background: var(--bg-tertiary); border-radius: 12px; margin: 5px 0;">
+                <div class="game-header" style="text-align: center; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">
+                    📝 Угадай слово
+                </div>
+                <div class="word-display" style="text-align: center; font-size: 1.5rem; font-family: var(--font-mono); color: var(--neon-green); margin: 10px 0; letter-spacing: 3px;">
+                    ${word}
+                </div>
+                <div class="game-info" style="display: flex; justify-content: space-between; margin: 10px 0; font-size: 0.9rem; color: var(--text-secondary);">
+                    <span>Попытки: ${attempts}</span>
+                    <span>Буквы: ${guessedLetters.join(', ')}</span>
+                </div>
+                ${gameData.status === 'active' ? `
+                    <div class="letter-input" style="text-align: center; margin-top: 10px;">
+                        <input type="text" maxlength="1" placeholder="Буква" 
+                               style="width: 50px; text-align: center; padding: 5px; border: 1px solid var(--neon-green); background: var(--bg-secondary); color: var(--text-primary); border-radius: 4px;"
+                               onkeypress="if(event.key==='Enter') app.makeGameMove('${messageId}', 'word-game', {letter: this.value}); this.value='';">
+                        <button onclick="const input = this.previousElementSibling; app.makeGameMove('${messageId}', 'word-game', {letter: input.value}); input.value='';" 
+                                style="margin-left: 10px; padding: 5px 10px; background: var(--neon-green); color: var(--bg-primary); border: none; border-radius: 4px; cursor: pointer;">
+                            Угадать
+                        </button>
+                    </div>
+                ` : `
+                    <div class="game-result" style="text-align: center; margin-top: 10px; color: ${gameData.status === 'won' ? 'var(--neon-green)' : 'var(--neon-pink)'}; font-weight: 600;">
+                        ${gameData.status === 'won' ? '🎉 Слово угадано!' : '💀 Игра окончена'}
+                    </div>
+                `}
+            </div>
+        `;
+    }
+
+    createQuizElement(gameData, messageId) {
+        const question = gameData.questions[gameData.currentQuestion];
+        if (!question) return '<div class="game-element">Вопросы закончились</div>';
+        
+        let optionsHtml = '';
+        question.options.forEach((option, index) => {
+            optionsHtml += `
+                <button onclick="app.makeGameMove('${messageId}', 'quiz', {answer: ${index}})" 
+                        style="display: block; width: 100%; margin: 5px 0; padding: 10px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--neon-blue); border-radius: 6px; cursor: pointer; transition: var(--transition-smooth);"
+                        onmouseover="this.style.background='var(--neon-blue)'; this.style.color='var(--bg-primary)';"
+                        onmouseout="this.style.background='var(--bg-secondary)'; this.style.color='var(--text-primary)';">
+                    ${option}
+                </button>
+            `;
+        });
+        
+        return `
+            <div class="game-element quiz-game" style="padding: 15px; background: var(--bg-tertiary); border-radius: 12px; margin: 5px 0;">
+                <div class="game-header" style="text-align: center; margin-bottom: 10px; color: var(--text-primary); font-weight: 600;">
+                    🧠 Викторина
+                </div>
+                <div class="question" style="margin-bottom: 15px; color: var(--text-primary); font-weight: 500;">
+                    ${question.question}
+                </div>
+                <div class="options">
+                    ${optionsHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    async makeGameMove(messageId, gameType, move) {
+        if (!this.socket) {
+            this.showNotification('Нет соединения с сервером', 'error');
+            return;
+        }
+        
+        this.socket.emit('game-move', {
+            messageId: messageId,
+            gameType: gameType,
+            move: move,
+            chatId: this.currentChat.id
+        });
     }
 
     async sendMessage() {
@@ -703,17 +916,152 @@ class MessengerApp {
             // Создаем экран видеозвонка
             this.createVideoCallScreen(stream, includeVideo);
             
-            // Уведомляем собеседника о звонке
+            // Уведомляем собеседника о звонке через улучшенную систему
             if (this.socket) {
                 this.socket.emit('call-user', {
                     chatId: this.currentChat.id,
                     callType: includeVideo ? 'video' : 'audio'
                 });
+                
+                // Настраиваем обработчики WebRTC событий
+                this.setupWebRTCHandlers(stream);
             }
             
         } catch (error) {
             console.error('🔥 Ошибка доступа к медиа:', error);
             this.showNotification('Ошибка доступа к камере/микрофону', 'error');
+        }
+    }
+
+    setupWebRTCHandlers(localStream) {
+        if (!this.socket) return;
+        
+        // Handle incoming call
+        this.socket.on('incoming-call', (data) => {
+            const { callId, fromUserId, fromUsername, callType, chatId } = data;
+            
+            if (confirm(`Входящий ${callType === 'video' ? 'видео' : 'аудио'}звонок от ${fromUsername}. Принять?`)) {
+                this.acceptCall(callId, fromUserId, callType);
+            } else {
+                this.socket.emit('call-answer', {
+                    targetUserId: fromUserId,
+                    answer: 'rejected',
+                    callId
+                });
+            }
+        });
+        
+        // Handle call answer
+        this.socket.on('call-answer', (data) => {
+            const { fromUserId, answer, callId } = data;
+            
+            if (answer === 'accepted') {
+                this.startPeerConnection(fromUserId, localStream, true);
+            } else {
+                this.showNotification('Звонок отклонен', 'info');
+                this.endCall(localStream);
+            }
+        });
+        
+        // Handle WebRTC signaling
+        this.socket.on('webrtc-signal', async (data) => {
+            const { fromUserId, signal, callId } = data;
+            
+            if (this.peerConnection) {
+                try {
+                    if (signal.type === 'offer') {
+                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+                        const answer = await this.peerConnection.createAnswer();
+                        await this.peerConnection.setLocalDescription(answer);
+                        
+                        this.socket.emit('webrtc-signal', {
+                            targetUserId: fromUserId,
+                            signal: answer,
+                            callId
+                        });
+                    } else if (signal.type === 'answer') {
+                        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+                    } else if (signal.candidate) {
+                        await this.peerConnection.addIceCandidate(new RTCIceCandidate(signal));
+                    }
+                } catch (error) {
+                    console.error('🔥 Ошибка WebRTC сигналинга:', error);
+                }
+            }
+        });
+    }
+
+    async acceptCall(callId, fromUserId, callType) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: callType === 'video',
+                audio: true
+            });
+            
+            this.createVideoCallScreen(stream, callType === 'video');
+            
+            this.socket.emit('call-answer', {
+                targetUserId: fromUserId,
+                answer: 'accepted',
+                callId
+            });
+            
+            this.startPeerConnection(fromUserId, stream, false);
+            
+        } catch (error) {
+            console.error('🔥 Ошибка принятия звонка:', error);
+            this.showNotification('Ошибка доступа к камере/микрофону', 'error');
+        }
+    }
+
+    async startPeerConnection(targetUserId, localStream, isInitiator) {
+        try {
+            this.peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+            
+            // Add local stream
+            localStream.getTracks().forEach(track => {
+                this.peerConnection.addTrack(track, localStream);
+            });
+            
+            // Handle remote stream
+            this.peerConnection.ontrack = (event) => {
+                const remoteVideo = document.getElementById('remote-video');
+                if (remoteVideo && event.streams[0]) {
+                    remoteVideo.srcObject = event.streams[0];
+                }
+            };
+            
+            // Handle ICE candidates
+            this.peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    this.socket.emit('webrtc-signal', {
+                        targetUserId: targetUserId,
+                        signal: event.candidate,
+                        callId: 'current-call'
+                    });
+                }
+            };
+            
+            // Create offer if initiator
+            if (isInitiator) {
+                const offer = await this.peerConnection.createOffer();
+                await this.peerConnection.setLocalDescription(offer);
+                
+                this.socket.emit('webrtc-signal', {
+                    targetUserId: targetUserId,
+                    signal: offer,
+                    callId: 'current-call'
+                });
+            }
+            
+        } catch (error) {
+            console.error('🔥 Ошибка создания peer connection:', error);
+            this.showNotification('Ошибка установки соединения', 'error');
         }
     }
 
@@ -835,6 +1183,12 @@ class MessengerApp {
         // Останавливаем все треки
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Закрываем peer connection
+        if (this.peerConnection) {
+            this.peerConnection.close();
+            this.peerConnection = null;
         }
         
         // Уведомляем о завершении звонка
@@ -1290,6 +1644,19 @@ class MessengerApp {
     }
 
     togglePollPanel() {
+        // Check if current chat is a group chat
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат', 'error');
+            return;
+        }
+        
+        // For now, we'll assume all chats are private unless specified otherwise
+        // In a real implementation, you'd check chat.type === 'group'
+        if (!this.currentChat.isGroup) {
+            this.showNotification('Опросы доступны только в групповых чатах', 'error');
+            return;
+        }
+        
         const panel = document.getElementById('poll-panel');
         if (panel) {
             const isVisible = panel.style.display === 'block';
@@ -1383,7 +1750,895 @@ class MessengerApp {
             this.showNotification('Ошибка отправки стикера', 'error');
         }
     }
+
+    // Missing methods for settings and functionality
+    
+    handleAvatarSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            this.showNotification('Выберите изображение', 'error');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            this.showNotification('Файл слишком большой (максимум 5MB)', 'error');
+            return;
+        }
+        
+        // Показываем превью
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const avatarPreview = document.getElementById('settings-avatar');
+            if (avatarPreview) {
+                avatarPreview.src = e.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+        
+        // Сохраняем файл для отправки
+        this.pendingAvatarFile = file;
+    }
+
+    async saveSettings() {
+        try {
+            const username = document.getElementById('settings-username')?.value?.trim();
+            const password = document.getElementById('settings-password')?.value;
+            
+            let avatarUrl = null;
+            
+            // Загружаем аватар если выбран
+            if (this.pendingAvatarFile) {
+                const formData = new FormData();
+                formData.append('file', this.pendingAvatarFile);
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+                
+                const uploadData = await uploadResponse.json();
+                if (uploadData.success) {
+                    avatarUrl = uploadData.file.url;
+                } else {
+                    this.showNotification('Ошибка загрузки аватара', 'error');
+                    return;
+                }
+            }
+            
+            // Обновляем профиль
+            const updateData = {};
+            if (username && username !== this.currentUser.username) {
+                updateData.username = username;
+            }
+            if (password) {
+                updateData.password = password;
+            }
+            if (avatarUrl) {
+                updateData.avatar = avatarUrl;
+            }
+            
+            if (Object.keys(updateData).length === 0) {
+                this.showNotification('Нет изменений для сохранения', 'info');
+                return;
+            }
+            
+            const response = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.currentUser = data.user;
+                this.updateUserProfile();
+                this.closeModal('settings-modal');
+                this.showNotification('Настройки сохранены!', 'success');
+                this.pendingAvatarFile = null;
+                
+                // Очищаем поле пароля
+                const passwordField = document.getElementById('settings-password');
+                if (passwordField) passwordField.value = '';
+            } else {
+                this.showNotification('Ошибка сохранения: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка сохранения настроек:', error);
+            this.showNotification('Ошибка сохранения настроек', 'error');
+        }
+    }
+
+    // Search functionality
+    setupSearchListeners() {
+        const userSearch = document.getElementById('user-search');
+        const chatSearch = document.getElementById('chat-search');
+        
+        if (userSearch) {
+            userSearch.addEventListener('input', (e) => {
+                this.searchUsers(e.target.value);
+            });
+        }
+        
+        if (chatSearch) {
+            chatSearch.addEventListener('input', (e) => {
+                this.searchChats(e.target.value);
+            });
+        }
+    }
+
+    searchUsers(query) {
+        const userItems = document.querySelectorAll('.user-item');
+        const searchTerm = query.toLowerCase().trim();
+        
+        userItems.forEach(item => {
+            const userName = item.querySelector('.user-name')?.textContent?.toLowerCase() || '';
+            const shouldShow = !searchTerm || userName.includes(searchTerm);
+            item.style.display = shouldShow ? 'flex' : 'none';
+        });
+    }
+
+    searchChats(query) {
+        const chatItems = document.querySelectorAll('.chat-item');
+        const searchTerm = query.toLowerCase().trim();
+        
+        chatItems.forEach(item => {
+            const chatName = item.querySelector('.chat-name')?.textContent?.toLowerCase() || '';
+            const shouldShow = !searchTerm || chatName.includes(searchTerm);
+            item.style.display = shouldShow ? 'flex' : 'none';
+        });
+    }
+
+    // GIF functionality
+    async loadGifs(searchTerm = '') {
+        const gifsContainer = document.querySelector('.gifs-container');
+        if (!gifsContainer) return;
+        
+        try {
+            // For now, show placeholder GIFs since we don't have API key
+            const placeholderGifs = [
+                'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+                'https://media.giphy.com/media/3o6Zt4HU9uwXmXSAuI/giphy.gif',
+                'https://media.giphy.com/media/l0HlvtIPzPdt2usKs/giphy.gif'
+            ];
+            
+            gifsContainer.innerHTML = '';
+            
+            placeholderGifs.forEach(gifUrl => {
+                const gifItem = document.createElement('div');
+                gifItem.className = 'gif-item';
+                gifItem.innerHTML = `<img src="${gifUrl}" alt="GIF" loading="lazy">`;
+                gifItem.style.cssText = `
+                    cursor: pointer;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    transition: var(--transition-smooth);
+                `;
+                
+                gifItem.addEventListener('click', () => {
+                    this.sendGifMessage(gifUrl);
+                });
+                
+                gifsContainer.appendChild(gifItem);
+            });
+            
+        } catch (error) {
+            console.error('🔥 Ошибка загрузки GIF:', error);
+            gifsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Ошибка загрузки GIF</p>';
+        }
+    }
+
+    async sendGifMessage(gifUrl) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки GIF', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: '',
+                    type: 'gif',
+                    fileData: { url: gifUrl, type: 'gif' }
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('sticker-panel').style.display = 'none';
+                this.showNotification('GIF отправлен!', 'success');
+            } else {
+                this.showNotification('Ошибка отправки GIF', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка отправки GIF:', error);
+            this.showNotification('Ошибка отправки GIF', 'error');
+        }
+    }
+
+    // Game functionality
+    async startGame(gameType) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для игры', 'error');
+            return;
+        }
+        
+        let gameData = {};
+        
+        switch (gameType) {
+            case 'tic-tac-toe':
+                gameData = {
+                    type: 'tic-tac-toe',
+                    board: ['', '', '', '', '', '', '', '', ''],
+                    currentPlayer: 'X',
+                    players: [this.currentUser.id],
+                    status: 'waiting'
+                };
+                break;
+                
+            case 'word-game':
+                const words = ['ПРОГРАММИРОВАНИЕ', 'КОМПЬЮТЕР', 'ИНТЕРНЕТ', 'ТЕХНОЛОГИЯ', 'РАЗРАБОТКА'];
+                const word = words[Math.floor(Math.random() * words.length)];
+                gameData = {
+                    type: 'word-game',
+                    word: word,
+                    guessed: Array(word.length).fill('_'),
+                    guessedLetters: [],
+                    attempts: 6,
+                    status: 'active'
+                };
+                break;
+                
+            case 'quiz':
+                gameData = {
+                    type: 'quiz',
+                    questions: [
+                        {
+                            question: 'Какой язык программирования используется для веб-разработки?',
+                            options: ['Python', 'JavaScript', 'C++', 'Java'],
+                            correct: 1
+                        }
+                    ],
+                    currentQuestion: 0,
+                    scores: {},
+                    status: 'active'
+                };
+                break;
+        }
+        
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: `🎮 Игра: ${this.getGameName(gameType)}`,
+                    type: 'game',
+                    fileData: gameData
+                })
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                this.closeModal('games-modal');
+                this.showNotification('Игра начата!', 'success');
+            } else {
+                this.showNotification('Ошибка создания игры', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка создания игры:', error);
+            this.showNotification('Ошибка создания игры', 'error');
+        }
+    }
+
+    getGameName(gameType) {
+        const names = {
+            'tic-tac-toe': 'Крестики-нолики',
+            'word-game': 'Угадай слово',
+            'quiz': 'Викторина'
+        };
+        return names[gameType] || gameType;
+    }
+
+    // Missing methods for settings and functionality
+
+    handleAvatarSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            this.showNotification('Выберите изображение', 'error');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            this.showNotification('Файл слишком большой (максимум 5MB)', 'error');
+            return;
+        }
+
+        // Показываем превью
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const avatarPreview = document.getElementById('settings-avatar');
+            if (avatarPreview) {
+                avatarPreview.src = e.target.result;
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Сохраняем файл для отправки
+        this.pendingAvatarFile = file;
+    }
+
+    async saveSettings() {
+        try {
+            const username = document.getElementById('settings-username')?.value?.trim();
+            const password = document.getElementById('settings-password')?.value;
+
+            let avatarUrl = null;
+
+            // Загружаем аватар если выбран
+            if (this.pendingAvatarFile) {
+                const formData = new FormData();
+                formData.append('file', this.pendingAvatarFile);
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadResponse.json();
+                if (uploadData.success) {
+                    avatarUrl = uploadData.file.url;
+                } else {
+                    this.showNotification('Ошибка загрузки аватара', 'error');
+                    return;
+                }
+            }
+
+            // Обновляем профиль
+            const updateData = {};
+            if (username && username !== this.currentUser.username) {
+                updateData.username = username;
+            }
+            if (password) {
+                updateData.password = password;
+            }
+            if (avatarUrl) {
+                updateData.avatar = avatarUrl;
+            }
+
+            if (Object.keys(updateData).length === 0) {
+                this.showNotification('Нет изменений для сохранения', 'info');
+                return;
+            }
+
+            const response = await fetch('/api/profile', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.currentUser = data.user;
+                this.updateUserProfile();
+                this.closeModal('settings-modal');
+                this.showNotification('Настройки сохранены!', 'success');
+                this.pendingAvatarFile = null;
+
+                // Очищаем поле пароля
+                const passwordField = document.getElementById('settings-password');
+                if (passwordField) passwordField.value = '';
+            } else {
+                this.showNotification('Ошибка сохранения: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка сохранения настроек:', error);
+            this.showNotification('Ошибка сохранения настроек', 'error');
+        }
+    }
+
+    // Search functionality
+    setupSearchListeners() {
+        const userSearch = document.getElementById('user-search');
+        const chatSearch = document.getElementById('chat-search');
+
+        if (userSearch) {
+            userSearch.addEventListener('input', (e) => {
+                this.searchUsers(e.target.value);
+            });
+        }
+
+        if (chatSearch) {
+            chatSearch.addEventListener('input', (e) => {
+                this.searchChats(e.target.value);
+            });
+        }
+    }
+
+    searchUsers(query) {
+        const userItems = document.querySelectorAll('.user-item');
+        const searchTerm = query.toLowerCase().trim();
+
+        userItems.forEach(item => {
+            const userName = item.querySelector('.user-name')?.textContent?.toLowerCase() || '';
+            const shouldShow = !searchTerm || userName.includes(searchTerm);
+            item.style.display = shouldShow ? 'flex' : 'none';
+        });
+    }
+
+    searchChats(query) {
+        const chatItems = document.querySelectorAll('.chat-item');
+        const searchTerm = query.toLowerCase().trim();
+
+        chatItems.forEach(item => {
+            const chatName = item.querySelector('.chat-name')?.textContent?.toLowerCase() || '';
+            const shouldShow = !searchTerm || chatName.includes(searchTerm);
+            item.style.display = shouldShow ? 'flex' : 'none';
+        });
+    }
+
+    // GIF functionality
+    async loadGifs(searchTerm = '') {
+        const gifsContainer = document.querySelector('.gifs-container');
+        if (!gifsContainer) return;
+
+        try {
+            // Using Giphy API (you'll need to get a free API key)
+            const apiKey = 'YOUR_GIPHY_API_KEY'; // Replace with actual API key
+            const endpoint = searchTerm
+                ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(searchTerm)}&limit=20`
+                : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=20`;
+
+            // For now, show placeholder GIFs since we don't have API key
+            const placeholderGifs = [
+                'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+                'https://media.giphy.com/media/3o6Zt4HU9uwXmXSAuI/giphy.gif',
+                'https://media.giphy.com/media/l0HlvtIPzPdt2usKs/giphy.gif'
+            ];
+
+            gifsContainer.innerHTML = '';
+
+            placeholderGifs.forEach(gifUrl => {
+                const gifItem = document.createElement('div');
+                gifItem.className = 'gif-item';
+                gifItem.innerHTML = `<img src="${gifUrl}" alt="GIF" loading="lazy">`;
+                gifItem.style.cssText = `
+                    cursor: pointer;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    transition: var(--transition-smooth);
+                `;
+
+                gifItem.addEventListener('click', () => {
+                    this.sendGifMessage(gifUrl);
+                });
+
+                gifsContainer.appendChild(gifItem);
+            });
+
+        } catch (error) {
+            console.error('🔥 Ошибка загрузки GIF:', error);
+            gifsContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Ошибка загрузки GIF</p>';
+        }
+    }
+
+    async sendGifMessage(gifUrl) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки GIF', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: '',
+                    type: 'gif',
+                    fileData: { url: gifUrl, type: 'gif' }
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                document.getElementById('sticker-panel').style.display = 'none';
+                this.showNotification('GIF отправлен!', 'success');
+            } else {
+                this.showNotification('Ошибка отправки GIF', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка отправки GIF:', error);
+            this.showNotification('Ошибка отправки GIF', 'error');
+        }
+    }
+
+    // Drawing functionality
+    initializeDrawingCanvas() {
+        const canvas = document.getElementById('draw-canvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#667eea';
+        let currentSize = 3;
+
+        // Set canvas size
+        canvas.width = 400;
+        canvas.height = 300;
+
+        // Drawing functions
+        const startDrawing = (e) => {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        };
+
+        const draw = (e) => {
+            if (!isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            ctx.lineWidth = currentSize;
+            ctx.lineCap = 'round';
+
+            if (currentTool === 'pen') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = currentColor;
+            } else if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+            }
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+        };
+
+        const stopDrawing = () => {
+            isDrawing = false;
+            ctx.beginPath();
+        };
+
+        // Event listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // Tool controls
+        document.querySelectorAll('.draw-tool').forEach(tool => {
+            tool.addEventListener('click', (e) => {
+                document.querySelectorAll('.draw-tool').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                currentTool = e.target.dataset.tool;
+            });
+        });
+
+        document.getElementById('draw-color')?.addEventListener('change', (e) => {
+            currentColor = e.target.value;
+        });
+
+        document.getElementById('draw-size')?.addEventListener('input', (e) => {
+            currentSize = e.target.value;
+        });
+
+        document.querySelector('.clear-canvas')?.addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+        document.querySelector('.send-drawing')?.addEventListener('click', () => {
+            this.sendDrawing(canvas);
+        });
+
+        document.querySelector('.cancel-drawing')?.addEventListener('click', () => {
+            document.getElementById('draw-panel').style.display = 'none';
+        });
+    }
+
+    async sendDrawing(canvas) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для отправки рисунка', 'error');
+            return;
+        }
+
+        try {
+            // Convert canvas to blob
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'drawing.png');
+                formData.append('chatId', this.currentChat.id);
+
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadResponse.json();
+
+                if (uploadData.success) {
+                    await this.sendMessageWithFile({
+                        ...uploadData.file,
+                        originalName: 'Рисунок'
+                    });
+
+                    // Clear canvas and close panel
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    document.getElementById('draw-panel').style.display = 'none';
+
+                    this.showNotification('Рисунок отправлен!', 'success');
+                } else {
+                    this.showNotification('Ошибка отправки рисунка', 'error');
+                }
+            }, 'image/png');
+
+        } catch (error) {
+            console.error('🔥 Ошибка отправки рисунка:', error);
+            this.showNotification('Ошибка отправки рисунка', 'error');
+        }
+    }
+
+    // Game functionality
+    async startGame(gameType) {
+        if (!this.currentChat) {
+            this.showNotification('Выберите чат для игры', 'error');
+            return;
+        }
+
+        let gameData = {};
+
+        switch (gameType) {
+            case 'tic-tac-toe':
+                gameData = {
+                    type: 'tic-tac-toe',
+                    board: ['', '', '', '', '', '', '', '', ''],
+                    currentPlayer: 'X',
+                    players: [this.currentUser.id],
+                    status: 'waiting'
+                };
+                break;
+
+            case 'word-game':
+                const words = ['ПРОГРАММИРОВАНИЕ', 'КОМПЬЮТЕР', 'ИНТЕРНЕТ', 'ТЕХНОЛОГИЯ', 'РАЗРАБОТКА'];
+                const word = words[Math.floor(Math.random() * words.length)];
+                gameData = {
+                    type: 'word-game',
+                    word: word,
+                    guessed: Array(word.length).fill('_'),
+                    guessedLetters: [],
+                    attempts: 6,
+                    status: 'active'
+                };
+                break;
+
+            case 'quiz':
+                gameData = {
+                    type: 'quiz',
+                    questions: [
+                        {
+                            question: 'Какой язык программирования используется для веб-разработки?',
+                            options: ['Python', 'JavaScript', 'C++', 'Java'],
+                            correct: 1
+                        }
+                    ],
+                    currentQuestion: 0,
+                    scores: {},
+                    status: 'active'
+                };
+                break;
+        }
+
+        try {
+            const response = await fetch('/api/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    chatId: this.currentChat.id,
+                    text: `🎮 Игра: ${this.getGameName(gameType)}`,
+                    type: 'game',
+                    fileData: gameData
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                this.closeModal('games-modal');
+                this.showNotification('Игра начата!', 'success');
+            } else {
+                this.showNotification('Ошибка создания игры', 'error');
+            }
+        } catch (error) {
+            console.error('🔥 Ошибка создания игры:', error);
+            this.showNotification('Ошибка создания игры', 'error');
+        }
+    }
+
+    getGameName(gameType) {
+        const names = {
+            'tic-tac-toe': 'Крестики-нолики',
+            'word-game': 'Угадай слово',
+            'quiz': 'Викторина'
+        };
+        return names[gameType] || gameType;
+    }
 }
+
+// Drawing functionality
+MessengerApp.prototype.initializeDrawingCanvas = function() {
+    const canvas = document.getElementById('draw-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let currentTool = 'pen';
+    let currentColor = '#667eea';
+    let currentSize = 3;
+    
+    // Set canvas size
+    canvas.width = 400;
+    canvas.height = 300;
+    
+    // Drawing functions
+    const startDrawing = (e) => {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+    
+    const draw = (e) => {
+        if (!isDrawing) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        ctx.lineWidth = currentSize;
+        ctx.lineCap = 'round';
+        
+        if (currentTool === 'pen') {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.strokeStyle = currentColor;
+        } else if (currentTool === 'eraser') {
+            ctx.globalCompositeOperation = 'destination-out';
+        }
+        
+        ctx.lineTo(x, y);
+        ctx.stroke();
+    };
+    
+    const stopDrawing = () => {
+        isDrawing = false;
+        ctx.beginPath();
+    };
+    
+    // Event listeners
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    
+    // Tool controls
+    document.querySelectorAll('.draw-tool').forEach(tool => {
+        tool.addEventListener('click', (e) => {
+            document.querySelectorAll('.draw-tool').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            currentTool = e.target.dataset.tool;
+        });
+    });
+    
+    document.getElementById('draw-color')?.addEventListener('change', (e) => {
+        currentColor = e.target.value;
+    });
+    
+    document.getElementById('draw-size')?.addEventListener('input', (e) => {
+        currentSize = e.target.value;
+    });
+    
+    document.querySelector('.clear-canvas')?.addEventListener('click', () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+    
+    document.querySelector('.send-drawing')?.addEventListener('click', () => {
+        this.sendDrawing(canvas);
+    });
+    
+    document.querySelector('.cancel-drawing')?.addEventListener('click', () => {
+        document.getElementById('draw-panel').style.display = 'none';
+    });
+};
+
+MessengerApp.prototype.sendDrawing = async function(canvas) {
+    if (!this.currentChat) {
+        this.showNotification('Выберите чат для отправки рисунка', 'error');
+        return;
+    }
+    
+    try {
+        // Convert canvas to blob
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('file', blob, 'drawing.png');
+            formData.append('chatId', this.currentChat.id);
+            
+            const uploadResponse = await fetch('/api/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: formData
+            });
+            
+            const uploadData = await uploadResponse.json();
+            
+            if (uploadData.success) {
+                await this.sendMessageWithFile({
+                    ...uploadData.file,
+                    originalName: 'Рисунок'
+                });
+                
+                // Clear canvas and close panel
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById('draw-panel').style.display = 'none';
+                
+                this.showNotification('Рисунок отправлен!', 'success');
+            } else {
+                this.showNotification('Ошибка отправки рисунка', 'error');
+            }
+        }, 'image/png');
+        
+    } catch (error) {
+        console.error('🔥 Ошибка отправки рисунка:', error);
+        this.showNotification('Ошибка отправки рисунка', 'error');
+    }
+};
 
 // Инициализация приложения
 const app = new MessengerApp();

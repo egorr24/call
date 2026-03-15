@@ -1626,7 +1626,7 @@ io.on('connection', (socket) => {
     
     // Ход в игре
     socket.on('game-move', async (data) => {
-        const { messageId, move, chatId } = data;
+        const { messageId, gameType, move, chatId } = data;
         
         if (!socket.userId) return;
         
@@ -1645,7 +1645,7 @@ io.on('connection', (socket) => {
                             gameData.currentPlayer = gameData.currentPlayer === 'X' ? 'O' : 'X';
                             
                             // Проверяем победу
-                            const winner = this.checkTicTacToeWinner(gameData.board);
+                            const winner = checkTicTacToeWinner(gameData.board);
                             if (winner) {
                                 gameData.status = 'finished';
                                 gameData.winner = winner;
@@ -1682,6 +1682,25 @@ io.on('connection', (socket) => {
                             }
                         }
                         break;
+                        
+                    case 'quiz':
+                        if (gameData.status === 'active' && typeof move.answer === 'number') {
+                            const currentQuestion = gameData.questions[gameData.currentQuestion];
+                            if (currentQuestion) {
+                                if (!gameData.scores) gameData.scores = {};
+                                if (!gameData.scores[socket.userId]) gameData.scores[socket.userId] = 0;
+                                
+                                if (move.answer === currentQuestion.correct) {
+                                    gameData.scores[socket.userId]++;
+                                }
+                                
+                                gameData.currentQuestion++;
+                                if (gameData.currentQuestion >= gameData.questions.length) {
+                                    gameData.status = 'finished';
+                                }
+                            }
+                        }
+                        break;
                 }
                 
                 await message.update({ fileData: gameData });
@@ -1698,15 +1717,108 @@ io.on('connection', (socket) => {
                 const message = chatMessages.find(m => m.id === messageId);
                 
                 if (message && message.type === 'game') {
+                    let gameData = message.fileData || {};
+                    
                     // Аналогичная обработка для Map
+                    switch (gameData.type) {
+                        case 'tic-tac-toe':
+                            if (gameData.status === 'active' && gameData.board[move.position] === '') {
+                                gameData.board[move.position] = gameData.currentPlayer;
+                                gameData.currentPlayer = gameData.currentPlayer === 'X' ? 'O' : 'X';
+                                
+                                const winner = checkTicTacToeWinner(gameData.board);
+                                if (winner) {
+                                    gameData.status = 'finished';
+                                    gameData.winner = winner;
+                                } else if (!gameData.board.includes('')) {
+                                    gameData.status = 'draw';
+                                }
+                            }
+                            break;
+                    }
+                    
+                    message.fileData = gameData;
+                    
                     io.to(chatId).emit('game-updated', {
                         messageId,
-                        gameData: message.gameData
+                        gameData: message.fileData
                     });
                 }
             }
         } catch (error) {
             console.error('Ошибка хода в игре:', error);
+        }
+    });
+    
+    // Improved WebRTC signaling
+    socket.on('call-user', async (data) => {
+        const { chatId, callType } = data;
+        
+        if (!socket.userId) return;
+        
+        try {
+            // Find other participants in the chat
+            let otherParticipants = [];
+            
+            if (useDatabase) {
+                const participants = await ChatParticipant.findAll({
+                    where: { chatId },
+                    include: [{ model: User, attributes: ['id', 'username'] }]
+                });
+                
+                otherParticipants = participants
+                    .filter(p => p.User.id !== socket.userId)
+                    .map(p => p.User.id);
+            } else {
+                const chat = chats.get(chatId);
+                if (chat) {
+                    otherParticipants = chat.participants.filter(id => id !== socket.userId);
+                }
+            }
+            
+            // Notify other participants about incoming call
+            otherParticipants.forEach(userId => {
+                const userSocketId = onlineUsers.get(userId);
+                if (userSocketId) {
+                    io.to(userSocketId).emit('incoming-call', {
+                        callId: uuidv4(),
+                        fromUserId: socket.userId,
+                        fromUsername: socket.username,
+                        callType,
+                        chatId
+                    });
+                }
+            });
+            
+        } catch (error) {
+            console.error('Ошибка инициации звонка:', error);
+            socket.emit('call-error', { error: 'Ошибка инициации звонка' });
+        }
+    });
+
+    socket.on('webrtc-signal', (data) => {
+        const { targetUserId, signal, callId } = data;
+        const targetSocketId = onlineUsers.get(targetUserId);
+        
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('webrtc-signal', {
+                fromUserId: socket.userId,
+                signal,
+                callId
+            });
+        }
+    });
+
+    socket.on('call-answer', (data) => {
+        const { targetUserId, answer, callId } = data;
+        const targetSocketId = onlineUsers.get(targetUserId);
+        
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('call-answer', {
+                fromUserId: socket.userId,
+                answer,
+                callId
+            });
         }
     });
     
