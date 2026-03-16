@@ -1,27 +1,25 @@
-# Use Node.js LTS version
 FROM node:18-alpine
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Копируем package.json файлы
 COPY package*.json ./
+COPY server/package*.json ./server/
+COPY client/package*.json ./client/
 
-# Install dependencies
-RUN npm ci --only=production
+# Устанавливаем зависимости
+RUN npm install --production=false
+RUN cd server && npm install --production=false
+RUN cd client && npm install --production=false
 
-# Copy application files
+# Копируем исходный код
 COPY . .
 
-# Create uploads directory
-RUN mkdir -p uploads
+# Собираем клиентское приложение
+RUN cd client && npm run build
 
-# Expose port
-EXPOSE 3000
+# Открываем порт
+EXPOSE 5000
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Start the application
+# Запускаем сервер
 CMD ["npm", "start"]
