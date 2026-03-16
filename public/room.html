@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Видеозвонок</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="video-container">
+        <div class="video-grid">
+            <div class="video-wrapper">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <div class="video-label">Вы</div>
+            </div>
+            <div class="video-wrapper">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <div class="video-label">Собеседник</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="toggleVideo" class="control-btn video-on">
+                📹
+            </button>
+            <button id="toggleAudio" class="control-btn audio-on">
+                🎤
+            </button>
+            <button id="shareScreen" class="control-btn">
+                🖥️
+            </button>
+            <button id="endCall" class="control-btn end-call">
+                📞
+            </button>
+        </div>
+        
+        <div class="room-info">
+            <p>ID комнаты: <span id="roomIdDisplay"></span></p>
+            <button id="copyRoomLink" class="btn btn-small">Копировать ссылку</button>
+        </div>
+    </div>
+
+    <div id="waitingMessage" class="waiting-message">
+        <h2>Ожидание подключения...</h2>
+        <p>Поделитесь ссылкой на комнату с собеседником</p>
+        <div class="spinner"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="room.js"></script>
+</body>
+</html>
