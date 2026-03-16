@@ -51,7 +51,6 @@ export default function Sidebar({ selectedChat, onSelectChat }: SidebarProps) {
   const filteredChats = chats.filter(chat =>
     chat.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
   return (
     <div className="w-80 bg-white dark:bg-flux-dark border-r border-gray-200 dark:border-gray-700 flex flex-col">
       {/* Заголовок */}

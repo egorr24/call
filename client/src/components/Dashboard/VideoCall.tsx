@@ -2,8 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { 
   PhoneXMarkIcon, 
   MicrophoneIcon, 
-  VideoCameraIcon,
-  XMarkIcon
+  VideoCameraIcon
 } from '@heroicons/react/24/solid';
 import { 
   MicrophoneIcon as MicrophoneOffIcon,
@@ -82,7 +81,6 @@ export default function VideoCall() {
           </div>
         )}
       </div>
-
       {/* Элементы управления */}
       <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
         <div className="flex items-center space-x-4">

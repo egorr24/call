@@ -85,7 +85,6 @@ export default function ChatArea({ selectedChat }: ChatAreaProps) {
       startCall(selectedChat);
     }
   };
-
   if (!selectedChat) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-flux-darker">
@@ -105,6 +104,7 @@ export default function ChatArea({ selectedChat }: ChatAreaProps) {
       </div>
     );
   }
+
   return (
     <div className="flex-1 flex flex-col bg-white dark:bg-flux-dark">
       {/* Заголовок чата */}

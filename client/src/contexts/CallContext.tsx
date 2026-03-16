@@ -70,7 +70,6 @@ export function CallProvider({ children }: CallProviderProps) {
       peerRef.current.signal(data.signal);
     }
   };
-
   const handleIceCandidate = (data: any) => {
     if (peerRef.current && data.callId === callId.current) {
       peerRef.current.signal(data.candidate);
@@ -80,6 +79,7 @@ export function CallProvider({ children }: CallProviderProps) {
   const handleCallEnded = () => {
     endCall();
   };
+
   const startCall = async (targetUserId: number) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
