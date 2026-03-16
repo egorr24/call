@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .flux-gradient {
+    @apply bg-gradient-to-r from-flux-primary to-flux-secondary;
+  }
+  
+  .flux-card {
+    @apply bg-white dark:bg-flux-dark rounded-lg shadow-lg border border-gray-200 dark:border-gray-700;
+  }
+  
+  .flux-input {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-flux-primary focus:border-transparent bg-white dark:bg-flux-darker text-gray-900 dark:text-white;
+  }
+  
+  .flux-button {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .flux-button-primary {
+    @apply flux-button bg-flux-primary hover:bg-indigo-700 text-white focus:ring-flux-primary;
+  }
+  
+  .flux-button-secondary {
+    @apply flux-button bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white focus:ring-gray-500;
+  }
+}
+
+/* Кастомные стили для скроллбара */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Стили для видеозвонков */
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.video-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 10;
+}
+
+.video-control-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.video-control-btn:hover {
+  transform: scale(1.1);
+}
+
+.video-control-btn.mute {
+  background: rgba(107, 114, 128, 0.8);
+  color: white;
+}
+
+.video-control-btn.unmute {
+  background: rgba(239, 68, 68, 0.8);
+  color: white;
+}
+
+.video-control-btn.end-call {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+}
